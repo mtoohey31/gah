@@ -99,3 +99,11 @@ func (e *ErrUnmarshallingArgument) Error() string {
 	return fmt.Sprintf("error unmarshalling argument for %s %s: %v",
 		e.name, e.value, e.error)
 }
+
+type ErrExpectedArgumentValue struct {
+	name string
+}
+
+func (e *ErrExpectedArgumentValue) Error() string {
+	return fmt.Sprintf("expected value for argument %s", e.name)
+}
