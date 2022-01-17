@@ -115,10 +115,12 @@ func evalAndRun(c Cmd, inputArgs []string, parentNames []string) error {
 	validShort, validLong := getValidFlags(flagsType)
 	remainingArgs := getArgs(argsType)
 
+	doubleDashEncountered := false
+
 	for i := 1; i < len(inputArgs); i++ {
 		arg := inputArgs[i]
 
-		if strings.HasPrefix(arg, "--") && len(arg) > 2 {
+		if strings.HasPrefix(arg, "--") && len(arg) > 2 && !doubleDashEncountered {
 			eqIndex := strings.IndexRune(arg, '=')
 			var flagName string
 			if eqIndex == -1 {
@@ -167,9 +169,10 @@ func evalAndRun(c Cmd, inputArgs []string, parentNames []string) error {
 				}
 				flags.Elem().FieldByIndex(field.Index).Set(res[0])
 			}
-		} else if strings.HasPrefix(arg, "-") && len(arg) > 1 {
+		} else if strings.HasPrefix(arg, "-") && len(arg) > 1 && !doubleDashEncountered {
 			if arg == "--" {
-				// TODO: handle --
+				doubleDashEncountered = true
+				continue
 			}
 
 			eqIndex := strings.IndexRune(arg, '=')
