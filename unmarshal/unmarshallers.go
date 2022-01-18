@@ -25,8 +25,6 @@ var f64 float64
 var b bool
 var s string
 
-// TODO: add support fur custom unmarshallers, which can be set as the default
-// for a type, or can be registered and called by name
 // TODO: add support for enums somehow
 // TODO: add tests for all unmarshallers
 
@@ -54,6 +52,32 @@ func TakesValue(f reflect.StructField) bool {
 	return true
 }
 
+func GetValueUnmarshaller(t reflect.Type, g reflect.StructTag,
+	c CustomValueUnmarshallers) ValueUnmarshaller {
+	u, found := c[t]
+	if found {
+		return u
+	}
+	u, found = valueUnmarshallers[t]
+	if found {
+		return u
+	}
+	panic(fmt.Sprintf("no value unmarshaller for type %s", t.Name()))
+}
+
+func GetValuelessUnmarshaller(t reflect.Type, g reflect.StructTag,
+	c CustomValuelessUnmarshallers) ValuelessUnmarshaller {
+	u, found := c[t]
+	if found {
+		return u
+	}
+	u, found = valuelessUnmarshallers[t]
+	if found {
+		return u
+	}
+	panic(fmt.Sprintf("no valueless unmarshaller for type %s", t.Name()))
+}
+
 func unmarshalBool(s string) (bool, error) {
 	trimmed := strings.ToLower(strings.TrimSpace(s))
 
@@ -72,7 +96,13 @@ func unmarshalBool(s string) (bool, error) {
 	return false, errors.New(fmt.Sprintf("invalid syntax \"%s\"", s))
 }
 
-var ValueUnmarshallers = map[reflect.Type]func(string, reflect.StructTag) (reflect.Value, error){
+type ValueUnmarshaller = func(string, reflect.StructTag) (reflect.Value, error)
+type ValuelessUnmarshaller = func(reflect.Value, reflect.StructTag) (reflect.Value, error)
+
+type CustomValueUnmarshallers = map[reflect.Type]ValueUnmarshaller
+type CustomValuelessUnmarshallers = map[reflect.Type]ValuelessUnmarshaller
+
+var valueUnmarshallers = map[reflect.Type]ValueUnmarshaller{
 	reflect.TypeOf(i): func(s string, t reflect.StructTag) (reflect.Value, error) {
 		i, err := strconv.ParseInt(s, 10, bits.UintSize)
 
@@ -470,7 +500,7 @@ var ValueUnmarshallers = map[reflect.Type]func(string, reflect.StructTag) (refle
 	},
 }
 
-var ValuelessUnmarshallers = map[reflect.Type]func(reflect.Value, reflect.StructTag) (reflect.Value, error){
+var valuelessUnmarshallers = map[reflect.Type]ValuelessUnmarshaller{
 	reflect.TypeOf(b): func(_ reflect.Value, t reflect.StructTag) (reflect.Value, error) {
 		_, invert := t.Lookup("invert")
 

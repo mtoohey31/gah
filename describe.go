@@ -4,6 +4,8 @@ validation.
 */
 package gah
 
+import "mtoohey.com/gah/unmarshal"
+
 // TODO: allow arguments before subcommands that can be passed to all
 // subcommands
 // TODO: first class completion support
@@ -18,5 +20,7 @@ type Cmd struct {
 	Description string
 	// TODO: restrict the values of this as much as possible with some
 	// modification of `interface{ []Cmd | interface{} }`
-	Content interface{}
+	Content                      interface{}
+	CustomValueUnmarshallers     unmarshal.CustomValueUnmarshallers
+	CustomValuelessUnmarshallers unmarshal.CustomValuelessUnmarshallers
 }

@@ -12,7 +12,6 @@ import (
 	"mtoohey.com/gah/unmarshal"
 )
 
-// TODO: allow passing of custom unmarshallers
 // TODO: refactor help and version into flags/subcommands so they're treated
 // like normal values
 
@@ -146,10 +145,8 @@ func evalAndRun(c Cmd, inputArgs []string, parentNames []string) error {
 					flagValue = arg[eqIndex+1:]
 				}
 
-				unmarshaller, ok := unmarshal.ValueUnmarshallers[flag.field.Type]
-				if !ok {
-					panic(fmt.Sprintf("no value unmarshaller for flag --%s", flagName))
-				}
+				unmarshaller := unmarshal.GetValueUnmarshaller(flag.field.Type, flag.field.Tag,
+					c.CustomValueUnmarshallers)
 
 				res, err := unmarshaller(flagValue, flag.field.Tag)
 				if err != nil {
@@ -162,10 +159,8 @@ func evalAndRun(c Cmd, inputArgs []string, parentNames []string) error {
 					return unexpectedFlagValueLong(flagName, arg[eqIndex+1:])
 				}
 
-				unmarshaller, ok := unmarshal.ValuelessUnmarshallers[flag.field.Type]
-				if !ok {
-					panic(fmt.Sprintf("no valueless unmarshaller for flag --%s", flagName))
-				}
+				unmarshaller := unmarshal.GetValuelessUnmarshaller(flag.field.Type,
+					flag.field.Tag, c.CustomValuelessUnmarshallers)
 
 				res, err := unmarshaller(flags.Elem().FieldByIndex(flag.field.Index),
 					flag.field.Tag)
@@ -215,10 +210,8 @@ func evalAndRun(c Cmd, inputArgs []string, parentNames []string) error {
 						j = len(flagRunes) - 1
 					}
 
-					unmarshaller, ok := unmarshal.ValueUnmarshallers[flag.field.Type]
-					if !ok {
-						panic(fmt.Sprintf("no value unmarshaller for flag -%c", flagRune))
-					}
+					unmarshaller := unmarshal.GetValueUnmarshaller(flag.field.Type,
+						flag.field.Tag, c.CustomValueUnmarshallers)
 
 					res, err := unmarshaller(flagValue, flag.field.Tag)
 					if err != nil {
@@ -231,7 +224,8 @@ func evalAndRun(c Cmd, inputArgs []string, parentNames []string) error {
 						return unexpectedFlagValueShort(flagRune, arg[eqIndex+1:])
 					}
 
-					unmarshaller, ok := unmarshal.ValuelessUnmarshallers[flag.field.Type]
+					unmarshaller := unmarshal.GetValuelessUnmarshaller(flag.field.Type,
+						flag.field.Tag, c.CustomValuelessUnmarshallers)
 					if !ok {
 						panic(fmt.Sprintf("no valueless unmarshaller for flag -%c", flagRune))
 					}
@@ -263,7 +257,7 @@ func evalAndRun(c Cmd, inputArgs []string, parentNames []string) error {
 				continue
 			}
 
-			res, err := remainingArgs[0].Unmarshaller()(arg, remainingArgs[0].Field().Tag)
+			res, err := remainingArgs[0].Unmarshaller(c.CustomValueUnmarshallers)(arg, remainingArgs[0].Field().Tag)
 			if err != nil {
 				if remainingArgs[0].MinReached(args) {
 					remainingArgs = remainingArgs[1:]
@@ -287,7 +281,7 @@ func evalAndRun(c Cmd, inputArgs []string, parentNames []string) error {
 	}
 
 	for _, flag := range allFlags {
-		flag.SetDefaultIfUnset(flags)
+		flag.SetDefaultIfUnset(flags, c.CustomValueUnmarshallers)
 	}
 
 	reflect.ValueOf(c.Content).Call([]reflect.Value{
@@ -325,7 +319,7 @@ type flagInfo struct {
 	set   bool
 }
 
-func (i *flagInfo) SetDefaultIfUnset(f reflect.Value) {
+func (i *flagInfo) SetDefaultIfUnset(f reflect.Value, c unmarshal.CustomValueUnmarshallers) {
 	if i.set {
 		return
 	}
@@ -335,10 +329,7 @@ func (i *flagInfo) SetDefaultIfUnset(f reflect.Value) {
 		return
 	}
 
-	unmarshaller, ok := unmarshal.ValueUnmarshallers[i.field.Type]
-	if !ok {
-		panic(fmt.Sprintf("no value unmarshaller for type %s", i.field.Type.Name()))
-	}
+	unmarshaller := unmarshal.GetValueUnmarshaller(i.field.Type, i.field.Tag, c)
 
 	res, err := unmarshaller(defaultString, i.field.Tag)
 	if err != nil {
@@ -412,7 +403,8 @@ type argInfo interface {
 	MinReached(reflect.Value) bool
 	MaxReached(reflect.Value) bool
 	Field() reflect.StructField
-	Unmarshaller() func(string, reflect.StructTag) (reflect.Value, error)
+	Unmarshaller(c unmarshal.CustomValueUnmarshallers,
+	) func(string, reflect.StructTag) (reflect.Value, error)
 	Update(reflect.Value, reflect.Value)
 	Optional() bool
 	Multiple() bool
@@ -434,13 +426,9 @@ func (i *sliceArgInfo) MaxReached(f reflect.Value) bool {
 
 func (i *sliceArgInfo) Field() reflect.StructField { return i.field }
 
-func (i *sliceArgInfo) Unmarshaller() func(string, reflect.StructTag) (reflect.Value, error) {
-	u, ok := unmarshal.ValueUnmarshallers[i.field.Type.Elem()]
-	if ok {
-		return u
-	} else {
-		panic(fmt.Sprintf("no value unmarshaller for type %s", i.field.Type.Name()))
-	}
+func (i *sliceArgInfo) Unmarshaller(c unmarshal.CustomValueUnmarshallers,
+) func(string, reflect.StructTag) (reflect.Value, error) {
+	return unmarshal.GetValueUnmarshaller(i.field.Type.Elem(), i.field.Tag, c)
 }
 
 func (i *sliceArgInfo) Update(f reflect.Value, v reflect.Value) {
@@ -475,13 +463,9 @@ func (i *arrayArgInfo) MaxReached(v reflect.Value) bool {
 
 func (i *arrayArgInfo) Field() reflect.StructField { return i.field }
 
-func (i *arrayArgInfo) Unmarshaller() func(string, reflect.StructTag) (reflect.Value, error) {
-	u, ok := unmarshal.ValueUnmarshallers[i.field.Type.Elem()]
-	if ok {
-		return u
-	} else {
-		panic(fmt.Sprintf("no value unmarshaller for type %s", i.field.Type.Name()))
-	}
+func (i *arrayArgInfo) Unmarshaller(c unmarshal.CustomValueUnmarshallers,
+) func(string, reflect.StructTag) (reflect.Value, error) {
+	return unmarshal.GetValueUnmarshaller(i.field.Type.Elem(), i.field.Tag, c)
 }
 
 func (i *arrayArgInfo) Update(f reflect.Value, v reflect.Value) {
@@ -510,13 +494,9 @@ func (i *defaultArgInfo) MaxReached(_ reflect.Value) bool {
 
 func (i *defaultArgInfo) Field() reflect.StructField { return i.field }
 
-func (i *defaultArgInfo) Unmarshaller() func(string, reflect.StructTag) (reflect.Value, error) {
-	u, ok := unmarshal.ValueUnmarshallers[i.field.Type]
-	if ok {
-		return u
-	} else {
-		panic(fmt.Sprintf("no value unmarshaller for type %s", i.field.Type.Name()))
-	}
+func (i *defaultArgInfo) Unmarshaller(c unmarshal.CustomValueUnmarshallers,
+) func(string, reflect.StructTag) (reflect.Value, error) {
+	return unmarshal.GetValueUnmarshaller(i.field.Type, i.field.Tag, c)
 }
 
 func (i *defaultArgInfo) Optional() bool { return false }

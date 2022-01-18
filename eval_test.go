@@ -1,13 +1,14 @@
 package gah
 
 import (
+	"reflect"
 	"testing"
 
 	"mtoohey.com/gah/test"
+	"mtoohey.com/gah/unmarshal"
 )
 
 var simpleVersionedCmd = Cmd{
-	Name:    "simple-test",
 	Version: "v0.0.0",
 	Content: func(f struct{}, a struct{}) {},
 }
@@ -33,7 +34,6 @@ func TestVersionSuccess(t *testing.T) {
 }
 
 var simpleUnversionedCmd = Cmd{
-	Name:    "simple-test",
 	Content: func(f struct{}, a struct{}) {},
 }
 
@@ -53,7 +53,6 @@ func TestFlags(t *testing.T) {
 	var test2 string
 
 	cmd := Cmd{
-		Name: "flag-only-test",
 		Content: func(f struct {
 			Test1 bool   `short:"1"`
 			Test2 string `long:"test-two"`
@@ -80,7 +79,6 @@ func TestDefaults(t *testing.T) {
 	var test2 string
 
 	cmd := Cmd{
-		Name: "defaults-test",
 		Content: func(f struct {
 			Test1 int    `default:"7"`
 			Test2 string `default:"test2"`
@@ -101,7 +99,6 @@ func TestArgs(t *testing.T) {
 	var test3 [3]string
 
 	cmd := Cmd{
-		Name: "args-only-test",
 		Content: func(_ struct{},
 			a struct {
 				Test1 string
@@ -130,4 +127,30 @@ func TestArgs(t *testing.T) {
 	test.AssertDeepEq(test3, [3]string{"a", "b", "c"}, t)
 	test.AssertErrIs(cmd.Eval([]string{"", "value1", "a", "b", "c"},
 		[]string{}), &ErrUnmarshallingArgument{}, t)
+}
+
+func TestCustomUnmarshallers(t *testing.T) {
+	var b bool
+	var test1 bool
+	var test2 bool
+
+	cmd := Cmd{
+		Content: func(f struct {
+			Test1 bool `takesVal:"true"`
+		}, a struct {
+			Test2 bool
+		}) {
+			test1 = f.Test1
+			test2 = a.Test2
+		},
+		CustomValueUnmarshallers: unmarshal.CustomValueUnmarshallers{
+			reflect.TypeOf(b): func(s string, t reflect.StructTag) (reflect.Value, error) {
+				return reflect.ValueOf(len(s) == 0), nil
+			},
+		},
+	}
+
+	test.AssertNil(cmd.Eval([]string{"", "--test-1", "", "asdf"}, nil), t)
+	test.Assert(test1, t)
+	test.Assert(!test2, t)
 }
