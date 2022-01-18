@@ -7,6 +7,7 @@ import (
 	"os"
 	"reflect"
 	"strconv"
+	"strings"
 )
 
 var i int
@@ -26,12 +27,54 @@ var s string
 // for a type, or can be registered and called by name
 // TODO: add support for enums somehow
 
-var Unmarshallers = map[reflect.Type]reflect.Value{
-	reflect.TypeOf(i): reflect.ValueOf(func(s string, t reflect.StructTag) (int, error) {
+var defaultsToNoValue = []reflect.Type{reflect.TypeOf(b)}
+
+func TakesValue(f reflect.StructField) bool {
+	s, found := f.Tag.Lookup("takesVal")
+
+	if found {
+		takesVal, err := unmarshalBool(s)
+
+		if err == nil {
+			return takesVal
+		} else {
+			panic(err)
+		}
+	}
+
+	for _, v := range defaultsToNoValue {
+		if f.Type == v {
+			return false
+		}
+	}
+
+	return true
+}
+
+func unmarshalBool(s string) (bool, error) {
+	trimmed := strings.ToLower(strings.TrimSpace(s))
+
+	for _, v := range []string{"0", "n", "no", "f", "false"} {
+		if trimmed == v {
+			return false, nil
+		}
+	}
+
+	for _, v := range []string{"1", "y", "yes", "t", "true"} {
+		if trimmed == v {
+			return true, nil
+		}
+	}
+
+	return false, errors.New(fmt.Sprintf("invalid syntax \"%s\"", s))
+}
+
+var ValueUnmarshallers = map[reflect.Type]func(string, reflect.StructTag) (reflect.Value, error){
+	reflect.TypeOf(i): func(s string, t reflect.StructTag) (reflect.Value, error) {
 		i, err := strconv.ParseInt(s, 10, bits.UintSize)
 
 		if err != nil {
-			return int(i), err
+			return reflect.ValueOf(int(i)), err
 		}
 
 		if minStr, ok := t.Lookup("minVal"); ok {
@@ -40,7 +83,7 @@ var Unmarshallers = map[reflect.Type]reflect.Value{
 				panic(err)
 			}
 			if i < min {
-				return int(i),
+				return reflect.ValueOf(int(i)),
 					errors.New(fmt.Sprintf("%d less than minimum: %d", i, min))
 			}
 		}
@@ -51,18 +94,18 @@ var Unmarshallers = map[reflect.Type]reflect.Value{
 				panic(err)
 			}
 			if i > max {
-				return int(i),
+				return reflect.ValueOf(int(i)),
 					errors.New(fmt.Sprintf("%d greater than than maximum: %d", i, max))
 			}
 		}
 
-		return int(i), nil
-	}),
-	reflect.TypeOf(i8): reflect.ValueOf(func(s string, t reflect.StructTag) (int8, error) {
+		return reflect.ValueOf(int(i)), nil
+	},
+	reflect.TypeOf(i8): func(s string, t reflect.StructTag) (reflect.Value, error) {
 		i, err := strconv.ParseInt(s, 10, 8)
 
 		if err != nil {
-			return int8(i), err
+			return reflect.ValueOf(int8(i)), err
 		}
 
 		if minStr, ok := t.Lookup("minVal"); ok {
@@ -71,7 +114,7 @@ var Unmarshallers = map[reflect.Type]reflect.Value{
 				panic(err)
 			}
 			if i < min {
-				return int8(i),
+				return reflect.ValueOf(int8(i)),
 					errors.New(fmt.Sprintf("%d less than minimum: %d", i, min))
 			}
 		}
@@ -82,18 +125,18 @@ var Unmarshallers = map[reflect.Type]reflect.Value{
 				panic(err)
 			}
 			if i > max {
-				return int8(i),
+				return reflect.ValueOf(int8(i)),
 					errors.New(fmt.Sprintf("%d greater than than maximum: %d", i, max))
 			}
 		}
 
-		return int8(i), nil
-	}),
-	reflect.TypeOf(i16): reflect.ValueOf(func(s string, t reflect.StructTag) (int16, error) {
+		return reflect.ValueOf(int8(i)), nil
+	},
+	reflect.TypeOf(i16): func(s string, t reflect.StructTag) (reflect.Value, error) {
 		i, err := strconv.ParseInt(s, 10, 16)
 
 		if err != nil {
-			return int16(i), err
+			return reflect.ValueOf(int16(i)), err
 		}
 
 		if minStr, ok := t.Lookup("minVal"); ok {
@@ -102,7 +145,7 @@ var Unmarshallers = map[reflect.Type]reflect.Value{
 				panic(err)
 			}
 			if i < min {
-				return int16(i),
+				return reflect.ValueOf(int16(i)),
 					errors.New(fmt.Sprintf("%d less than minimum: %d", i, min))
 			}
 		}
@@ -113,18 +156,18 @@ var Unmarshallers = map[reflect.Type]reflect.Value{
 				panic(err)
 			}
 			if i > max {
-				return int16(i),
+				return reflect.ValueOf(int16(i)),
 					errors.New(fmt.Sprintf("%d greater than than maximum: %d", i, max))
 			}
 		}
 
-		return int16(i), nil
-	}),
-	reflect.TypeOf(i32): reflect.ValueOf(func(s string, t reflect.StructTag) (int32, error) {
+		return reflect.ValueOf(int16(i)), nil
+	},
+	reflect.TypeOf(i32): func(s string, t reflect.StructTag) (reflect.Value, error) {
 		i, err := strconv.ParseInt(s, 10, 32)
 
 		if err != nil {
-			return int32(i), err
+			return reflect.ValueOf(int32(i)), err
 		}
 
 		if minStr, ok := t.Lookup("minVal"); ok {
@@ -133,7 +176,7 @@ var Unmarshallers = map[reflect.Type]reflect.Value{
 				panic(err)
 			}
 			if i < min {
-				return int32(i),
+				return reflect.ValueOf(int32(i)),
 					errors.New(fmt.Sprintf("%d less than minimum: %d", i, min))
 			}
 		}
@@ -144,18 +187,18 @@ var Unmarshallers = map[reflect.Type]reflect.Value{
 				panic(err)
 			}
 			if i > max {
-				return int32(i),
+				return reflect.ValueOf(int32(i)),
 					errors.New(fmt.Sprintf("%d greater than than maximum: %d", i, max))
 			}
 		}
 
-		return int32(i), nil
-	}),
-	reflect.TypeOf(i64): reflect.ValueOf(func(s string, t reflect.StructTag) (int64, error) {
+		return reflect.ValueOf(int32(i)), nil
+	},
+	reflect.TypeOf(i64): func(s string, t reflect.StructTag) (reflect.Value, error) {
 		i, err := strconv.ParseInt(s, 10, 64)
 
 		if err != nil {
-			return i, err
+			return reflect.ValueOf(i), err
 		}
 
 		if minStr, ok := t.Lookup("minVal"); ok {
@@ -164,7 +207,7 @@ var Unmarshallers = map[reflect.Type]reflect.Value{
 				panic(err)
 			}
 			if i < min {
-				return int64(i),
+				return reflect.ValueOf(i),
 					errors.New(fmt.Sprintf("%d less than minimum: %d", i, min))
 			}
 		}
@@ -175,18 +218,18 @@ var Unmarshallers = map[reflect.Type]reflect.Value{
 				panic(err)
 			}
 			if i > max {
-				return int64(i),
+				return reflect.ValueOf(i),
 					errors.New(fmt.Sprintf("%d greater than than maximum: %d", i, max))
 			}
 		}
 
-		return i, err
-	}),
-	reflect.TypeOf(u): reflect.ValueOf(func(s string, t reflect.StructTag) (uint, error) {
+		return reflect.ValueOf(i), err
+	},
+	reflect.TypeOf(u): func(s string, t reflect.StructTag) (reflect.Value, error) {
 		i, err := strconv.ParseUint(s, 10, bits.UintSize)
 
 		if err != nil {
-			return uint(i), err
+			return reflect.ValueOf(uint(i)), err
 		}
 
 		if minStr, ok := t.Lookup("minVal"); ok {
@@ -195,7 +238,7 @@ var Unmarshallers = map[reflect.Type]reflect.Value{
 				panic(err)
 			}
 			if i < min {
-				return uint(i),
+				return reflect.ValueOf(uint(i)),
 					errors.New(fmt.Sprintf("%d less than minimum: %d", i, min))
 			}
 		}
@@ -206,18 +249,18 @@ var Unmarshallers = map[reflect.Type]reflect.Value{
 				panic(err)
 			}
 			if i > max {
-				return uint(i),
+				return reflect.ValueOf(uint(i)),
 					errors.New(fmt.Sprintf("%d greater than than maximum: %d", i, max))
 			}
 		}
 
-		return uint(i), nil
-	}),
-	reflect.TypeOf(u8): reflect.ValueOf(func(s string, t reflect.StructTag) (uint8, error) {
+		return reflect.ValueOf(uint(i)), nil
+	},
+	reflect.TypeOf(u8): func(s string, t reflect.StructTag) (reflect.Value, error) {
 		i, err := strconv.ParseUint(s, 10, 8)
 
 		if err != nil {
-			return uint8(i), err
+			return reflect.ValueOf(uint8(i)), err
 		}
 
 		if minStr, ok := t.Lookup("minVal"); ok {
@@ -226,7 +269,7 @@ var Unmarshallers = map[reflect.Type]reflect.Value{
 				panic(err)
 			}
 			if i < min {
-				return uint8(i),
+				return reflect.ValueOf(uint8(i)),
 					errors.New(fmt.Sprintf("%d less than minimum: %d", i, min))
 			}
 		}
@@ -237,18 +280,18 @@ var Unmarshallers = map[reflect.Type]reflect.Value{
 				panic(err)
 			}
 			if i > max {
-				return uint8(i),
+				return reflect.ValueOf(uint8(i)),
 					errors.New(fmt.Sprintf("%d greater than than maximum: %d", i, max))
 			}
 		}
 
-		return uint8(i), nil
-	}),
-	reflect.TypeOf(u16): reflect.ValueOf(func(s string, t reflect.StructTag) (uint16, error) {
+		return reflect.ValueOf(uint8(i)), nil
+	},
+	reflect.TypeOf(u16): func(s string, t reflect.StructTag) (reflect.Value, error) {
 		i, err := strconv.ParseUint(s, 10, 16)
 
 		if err != nil {
-			return uint16(i), err
+			return reflect.ValueOf(uint16(i)), err
 		}
 
 		if minStr, ok := t.Lookup("minVal"); ok {
@@ -257,7 +300,7 @@ var Unmarshallers = map[reflect.Type]reflect.Value{
 				panic(err)
 			}
 			if i < min {
-				return uint16(i),
+				return reflect.ValueOf(uint16(i)),
 					errors.New(fmt.Sprintf("%d less than minimum: %d", i, min))
 			}
 		}
@@ -268,18 +311,18 @@ var Unmarshallers = map[reflect.Type]reflect.Value{
 				panic(err)
 			}
 			if i > max {
-				return uint16(i),
+				return reflect.ValueOf(uint16(i)),
 					errors.New(fmt.Sprintf("%d greater than than maximum: %d", i, max))
 			}
 		}
 
-		return uint16(i), nil
-	}),
-	reflect.TypeOf(u32): reflect.ValueOf(func(s string, t reflect.StructTag) (uint32, error) {
+		return reflect.ValueOf(uint16(i)), nil
+	},
+	reflect.TypeOf(u32): func(s string, t reflect.StructTag) (reflect.Value, error) {
 		i, err := strconv.ParseUint(s, 10, 32)
 
 		if err != nil {
-			return uint32(i), err
+			return reflect.ValueOf(uint32(i)), err
 		}
 
 		if minStr, ok := t.Lookup("minVal"); ok {
@@ -288,7 +331,7 @@ var Unmarshallers = map[reflect.Type]reflect.Value{
 				panic(err)
 			}
 			if i < min {
-				return uint32(i),
+				return reflect.ValueOf(uint32(i)),
 					errors.New(fmt.Sprintf("%d less than minimum: %d", i, min))
 			}
 		}
@@ -299,18 +342,18 @@ var Unmarshallers = map[reflect.Type]reflect.Value{
 				panic(err)
 			}
 			if i > max {
-				return uint32(i),
+				return reflect.ValueOf(uint32(i)),
 					errors.New(fmt.Sprintf("%d greater than than maximum: %d", i, max))
 			}
 		}
 
-		return uint32(i), nil
-	}),
-	reflect.TypeOf(u64): reflect.ValueOf(func(s string, t reflect.StructTag) (uint64, error) {
+		return reflect.ValueOf(uint32(i)), nil
+	},
+	reflect.TypeOf(u64): func(s string, t reflect.StructTag) (reflect.Value, error) {
 		i, err := strconv.ParseUint(s, 10, 64)
 
 		if err != nil {
-			return i, err
+			return reflect.ValueOf(i), err
 		}
 
 		if minStr, ok := t.Lookup("minVal"); ok {
@@ -319,7 +362,7 @@ var Unmarshallers = map[reflect.Type]reflect.Value{
 				panic(err)
 			}
 			if i < min {
-				return uint64(i),
+				return reflect.ValueOf(i),
 					errors.New(fmt.Sprintf("%d less than minimum: %d", i, min))
 			}
 		}
@@ -330,31 +373,44 @@ var Unmarshallers = map[reflect.Type]reflect.Value{
 				panic(err)
 			}
 			if i > max {
-				return uint64(i),
+				return reflect.ValueOf(i),
 					errors.New(fmt.Sprintf("%d greater than than maximum: %d", i, max))
 			}
 		}
 
-		return i, nil
-	}),
+		return reflect.ValueOf(i), nil
+	},
 
 	// TODO: add floats
 
-	reflect.TypeOf(b): reflect.ValueOf(func(t reflect.StructTag) (bool, error) {
+	reflect.TypeOf(b): func(s string, t reflect.StructTag) (reflect.Value, error) {
 		_, invert := t.Lookup("invert")
+		b, err := unmarshalBool(s)
 
-		return !invert, nil
-	}),
+		if err == nil {
+			return reflect.ValueOf(invert != b), nil
+		} else {
+			return reflect.ValueOf(false), err
+		}
+	},
 
-	reflect.TypeOf(s): reflect.ValueOf(func(s string, t reflect.StructTag) (string, error) {
+	reflect.TypeOf(s): func(s string, t reflect.StructTag) (reflect.Value, error) {
 		_, path := t.Lookup("path")
 		if path {
 			_, err := os.Stat(s)
-			return s, err
+			return reflect.ValueOf(s), err
 		}
 
 		// TODO: add file, dir, executable, socket, etc. available in unix test
 
-		return s, nil
-	}),
+		return reflect.ValueOf(s), nil
+	},
+}
+
+var ValuelessUnmarshallers = map[reflect.Type]func(reflect.Value, reflect.StructTag) (reflect.Value, error){
+	reflect.TypeOf(b): func(_ reflect.Value, t reflect.StructTag) (reflect.Value, error) {
+		_, invert := t.Lookup("invert")
+
+		return reflect.ValueOf(!invert), nil
+	},
 }
