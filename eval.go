@@ -12,7 +12,6 @@ import (
 	"mtoohey.com/gah/unmarshal"
 )
 
-// TODO: allow custom default values provided in tags
 // TODO: allow passing of custom unmarshallers
 // TODO: refactor help and version into flags/subcommands so they're treated
 // like normal values
@@ -111,7 +110,8 @@ func evalAndRun(c Cmd, inputArgs []string, parentNames []string) error {
 	argsType := reflect.TypeOf(c.Content).In(1)
 	args := reflect.New(argsType)
 
-	validShort, validLong := getValidFlags(flagsType)
+	allFlags := getFlags(flagsType)
+	validShort, validLong := getFlagMaps(allFlags)
 	remainingArgs := getArgs(argsType)
 
 	doubleDashEncountered := false
@@ -128,12 +128,12 @@ func evalAndRun(c Cmd, inputArgs []string, parentNames []string) error {
 				flagName = arg[2:eqIndex]
 			}
 
-			field, ok := validLong[flagName]
+			flag, ok := validLong[flagName]
 			if !ok {
 				return trySalvageBuiltinLong(c, flagName, parentNames)
 			}
 
-			unmarshaller, ok := unmarshal.Unmarshallers[field.Type]
+			unmarshaller, ok := unmarshal.Unmarshallers[(*flag).field.Type]
 			if !ok {
 				panic(fmt.Sprintf("no unmarshaller for flag --%s", flagName))
 			}
@@ -143,11 +143,12 @@ func evalAndRun(c Cmd, inputArgs []string, parentNames []string) error {
 					return unexpectedFlagValueLong(flagName, arg[eqIndex+1:])
 				}
 
-				res := unmarshaller.Call([]reflect.Value{reflect.ValueOf(field.Tag)})
+				res := unmarshaller.Call([]reflect.Value{reflect.ValueOf((*flag).field.Tag)})
 				if !res[1].IsNil() {
 					return unmarshallingFlagLong(flagName, res[1].Interface().(error))
 				}
-				flags.Elem().FieldByIndex(field.Index).Set(res[0])
+				flags.Elem().FieldByIndex((*flag).field.Index).Set(res[0])
+				flag.set = true
 			} else {
 				var flagValue string
 				if eqIndex == -1 {
@@ -162,11 +163,12 @@ func evalAndRun(c Cmd, inputArgs []string, parentNames []string) error {
 				}
 
 				res := unmarshaller.Call([]reflect.Value{reflect.ValueOf(flagValue),
-					reflect.ValueOf(field.Tag)})
+					reflect.ValueOf((*flag).field.Tag)})
 				if !res[1].IsNil() {
 					return unmarshallingFlagLong(flagName, res[1].Interface().(error))
 				}
-				flags.Elem().FieldByIndex(field.Index).Set(res[0])
+				flags.Elem().FieldByIndex((*flag).field.Index).Set(res[0])
+				flag.set = true
 			}
 		} else if strings.HasPrefix(arg, "-") && len(arg) > 1 && !doubleDashEncountered {
 			if arg == "--" {
@@ -185,12 +187,12 @@ func evalAndRun(c Cmd, inputArgs []string, parentNames []string) error {
 			for j := 0; j < len(flagRunes); j++ {
 				flagRune := flagRunes[j]
 
-				field, ok := validShort[flagRune]
+				flag, ok := validShort[flagRune]
 				if !ok {
 					return trySalvageBuiltinShort(c, flagRune, parentNames)
 				}
 
-				unmarshaller, ok := unmarshal.Unmarshallers[field.Type]
+				unmarshaller, ok := unmarshal.Unmarshallers[flag.field.Type]
 				if !ok {
 					panic(fmt.Sprintf("no unmarshaller for flag -%c", flagRune))
 				}
@@ -200,11 +202,12 @@ func evalAndRun(c Cmd, inputArgs []string, parentNames []string) error {
 						return unexpectedFlagValueShort(flagRune, arg[eqIndex+1:])
 					}
 
-					res := unmarshaller.Call([]reflect.Value{reflect.ValueOf(field.Tag)})
+					res := unmarshaller.Call([]reflect.Value{reflect.ValueOf(flag.field.Tag)})
 					if !res[1].IsNil() {
 						return unmarshallingFlagShort(flagRune, res[1].Interface().(error))
 					}
-					flags.Elem().FieldByIndex(field.Index).Set(res[0])
+					flags.Elem().FieldByIndex(flag.field.Index).Set(res[0])
+					flag.set = true
 				} else {
 					var flagValue string
 					if j == len(flagRunes)-1 {
@@ -224,11 +227,12 @@ func evalAndRun(c Cmd, inputArgs []string, parentNames []string) error {
 					}
 
 					res := unmarshaller.Call([]reflect.Value{reflect.ValueOf(flagValue),
-						reflect.ValueOf(field.Tag)})
+						reflect.ValueOf(flag.field.Tag)})
 					if !res[1].IsNil() {
 						return unmarshallingFlagShort(flagRune, res[1].Interface().(error))
 					}
-					flags.Elem().FieldByIndex(field.Index).Set(res[0])
+					flags.Elem().FieldByIndex(flag.field.Index).Set(res[0])
+					flag.set = true
 				}
 			}
 		} else {
@@ -274,6 +278,10 @@ func evalAndRun(c Cmd, inputArgs []string, parentNames []string) error {
 		}
 	}
 
+	for _, flag := range allFlags {
+		flag.SetDefaultIfUnset(flags)
+	}
+
 	reflect.ValueOf(c.Content).Call([]reflect.Value{
 		reflect.Indirect(flags), reflect.Indirect(args)})
 
@@ -304,25 +312,67 @@ func trySalvageBuiltinShort(c Cmd, flagRune rune, parentNames []string) error {
 	}
 }
 
-func getValidFlags(flagsType reflect.Type) (map[rune]reflect.StructField, map[string]reflect.StructField) {
-	validShort := make(map[rune]reflect.StructField)
-	validLong := make(map[string]reflect.StructField)
+type flagInfo struct {
+	field reflect.StructField
+	set   bool
+}
 
-	for _, field := range reflect.VisibleFields(flagsType) {
-		short, found := field.Tag.Lookup("short")
+func (i *flagInfo) SetDefaultIfUnset(f reflect.Value) {
+	if i.set {
+		return
+	}
+
+	defaultString, found := i.field.Tag.Lookup("default")
+	if !found {
+		return
+	}
+
+	unmarshaller, ok := unmarshal.Unmarshallers[i.field.Type]
+	if !ok {
+		panic(fmt.Sprintf("no unmarshaller for type %s", i.field.Type.Name()))
+	}
+
+	res := unmarshaller.Call([]reflect.Value{reflect.ValueOf(defaultString),
+		reflect.ValueOf(i.field.Tag)})
+	if !res[1].IsNil() {
+		panic(fmt.Sprintf("unmarshalling failed for default value of flag %s",
+			i.field.Name))
+	}
+
+	f.Elem().FieldByIndex(i.field.Index).Set(res[0])
+	i.set = true
+}
+
+func getFlags(flagsType reflect.Type) []flagInfo {
+	visibleFields := reflect.VisibleFields(flagsType)
+	flagInfoItems := make([]flagInfo, len(visibleFields))
+
+	for i, field := range visibleFields {
+		flagInfoItems[i] = flagInfo{field: field}
+	}
+
+	return flagInfoItems
+}
+
+func getFlagMaps(flags []flagInfo) (map[rune]*flagInfo, map[string]*flagInfo) {
+	validShort := make(map[rune]*flagInfo)
+	validLong := make(map[string]*flagInfo)
+
+	for i := range flags {
+		short, found := flags[i].field.Tag.Lookup("short")
 		if found {
 			runes := []rune(short)
 			if len(runes) != 1 {
 				// TODO: provide error to developer about invalid short flag
 			}
-			validShort[runes[0]] = field
+			validShort[runes[0]] = &flags[i]
 		}
 
-		long, found := field.Tag.Lookup("long")
+		long, found := flags[i].field.Tag.Lookup("long")
 		if found {
-			validLong[long] = field
+			validLong[long] = &flags[i]
 		} else {
-			validLong[pascalToKebab(field.Name)] = field
+			validLong[pascalToKebab(flags[i].field.Name)] = &flags[i]
 		}
 	}
 

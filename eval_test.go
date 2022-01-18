@@ -75,6 +75,26 @@ func TestFlags(t *testing.T) {
 	test.AssertErrIs(cmd.Eval([]string{"", "--test-2", expected}, []string{}), &ErrUnexpectedFlag{}, t)
 }
 
+func TestDefaults(t *testing.T) {
+	var test1 int
+	var test2 string
+
+	cmd := Cmd{
+		Name: "defaults-test",
+		Content: func(f struct {
+			Test1 int    `default:"7"`
+			Test2 string `default:"test2"`
+		}, _ struct{}) {
+			test1 = f.Test1
+			test2 = f.Test2
+		},
+	}
+
+	test.AssertNil(cmd.Eval([]string{""}, []string{}), t)
+	test.AssertEq(test1, 7, t)
+	test.AssertEq(test2, "test2", t)
+}
+
 func TestArgs(t *testing.T) {
 	var test1 string
 	var test2 []int
