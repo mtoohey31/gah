@@ -7,8 +7,7 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
-
-	"github.com/gobeam/stringy"
+	"unicode"
 
 	"mtoohey.com/gah/unmarshal"
 )
@@ -152,14 +151,14 @@ func evalAndRun(c Cmd, inputArgs []string, parentNames []string) error {
 			} else {
 				var flagValue string
 				if eqIndex == -1 {
-					flagValue = arg[eqIndex+1:]
-				} else {
 					if i == len(inputArgs)-1 {
 						return expectedFlagValueLong(flagName)
 					}
 
 					i++
 					flagValue = inputArgs[i]
+				} else {
+					flagValue = arg[eqIndex+1:]
 				}
 
 				res := unmarshaller.Call([]reflect.Value{reflect.ValueOf(flagValue),
@@ -323,11 +322,33 @@ func getValidFlags(flagsType reflect.Type) (map[rune]reflect.StructField, map[st
 		if found {
 			validLong[long] = field
 		} else {
-			validLong[stringy.New(field.Name).KebabCase().ToLower()] = field
+			validLong[pascalToKebab(field.Name)] = field
 		}
 	}
 
 	return validShort, validLong
+}
+
+func pascalToKebab(s string) string {
+	if len(s) == 0 {
+		return ""
+	}
+
+	runes := []rune(s)
+	res := []rune{unicode.ToLower(runes[0])}
+	runes = runes[1:]
+
+	for _, r := range runes {
+		if unicode.IsUpper(r) {
+			res = append(res, '-', unicode.ToLower(r))
+		} else if unicode.IsDigit(r) {
+			res = append(res, '-', r)
+		} else {
+			res = append(res, r)
+		}
+	}
+
+	return string(res)
 }
 
 type argInfo interface {

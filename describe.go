@@ -4,10 +4,11 @@ validation.
 */
 package gah
 
-// TODO: TESTING!!!
 // TODO: allow arguments before subcommands that can be passed to all
 // subcommands
 // TODO: first class completion support
+// TODO: provide validator function that people can run in their tests that
+// will scan the cmd declaration for errors
 
 type Cmd struct {
 	Name        string
