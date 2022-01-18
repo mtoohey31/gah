@@ -368,7 +368,6 @@ type sliceArgInfo struct {
 }
 
 func (i *sliceArgInfo) MinReached(f reflect.Value) bool {
-	println("checking min for: " + i.field.Type.Name())
 	return f.Elem().FieldByIndex(i.field.Index).Len() >= i.min
 }
 
