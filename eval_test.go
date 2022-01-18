@@ -133,19 +133,27 @@ func TestCustomUnmarshallers(t *testing.T) {
 	var b bool
 	var test1 bool
 	var test2 bool
+	var test3 bool
 
 	cmd := Cmd{
 		Content: func(f struct {
 			Test1 bool `takesVal:"true"`
-		}, a struct {
 			Test2 bool
+		}, a struct {
+			Test3 bool
 		}) {
 			test1 = f.Test1
-			test2 = a.Test2
+			test2 = f.Test2
+			test3 = a.Test3
 		},
 		CustomValueUnmarshallers: unmarshal.CustomValueUnmarshallers{
-			reflect.TypeOf(b): func(s string, t reflect.StructTag) (reflect.Value, error) {
+			reflect.TypeOf(b): func(s string, _ reflect.StructTag) (reflect.Value, error) {
 				return reflect.ValueOf(len(s) == 0), nil
+			},
+		},
+		CustomValuelessUnmarshallers: unmarshal.CustomValuelessUnmarshallers{
+			reflect.TypeOf(b): func(_ reflect.Value, _ reflect.StructTag) (reflect.Value, error) {
+				return reflect.ValueOf(false), nil
 			},
 		},
 	}
@@ -153,4 +161,5 @@ func TestCustomUnmarshallers(t *testing.T) {
 	test.AssertNil(cmd.Eval([]string{"", "--test-1", "", "asdf"}, nil), t)
 	test.Assert(test1, t)
 	test.Assert(!test2, t)
+	test.Assert(!test3, t)
 }
