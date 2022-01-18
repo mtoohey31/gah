@@ -6,8 +6,6 @@ package gah
 
 import "mtoohey.com/gah/unmarshal"
 
-// TODO: allow arguments before subcommands that can be passed to all
-// subcommands
 // TODO: first class completion support
 // TODO: provide validator function that people can run in their tests that
 // will scan the cmd declaration for errors

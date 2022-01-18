@@ -251,6 +251,14 @@ func evalAndRun(c Cmd, inputArgs []string, parentNames []string) error {
 				}
 			}
 
+			_, found := remainingArgs[0].Field().Tag.Lookup("subcommandArgs")
+			if found {
+				// TODO: validate that this is safe in validate testing function
+				args.Elem().FieldByIndex(remainingArgs[0].Field().Index).Set(
+					reflect.ValueOf(inputArgs[i:]))
+				break
+			}
+
 			if remainingArgs[0].MaxReached(args) {
 				remainingArgs = remainingArgs[1:]
 				i--

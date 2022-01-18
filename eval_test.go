@@ -163,3 +163,25 @@ func TestCustomUnmarshallers(t *testing.T) {
 	test.Assert(!test2, t)
 	test.Assert(!test3, t)
 }
+
+func TestSubcommandArgs(t *testing.T) {
+	var actualOutputFormat string
+	expectedOutputFormat := "json"
+	var actualArgs []string
+	expectedArgs := []string{"these", "--are", "args", "for", "-a", "subcommand"}
+
+	cmd := Cmd{
+		Content: func(f struct {
+			OutputFormat string
+		}, a struct {
+			SubcommandArgs []string `subcommandArgs:""`
+		}) {
+			actualOutputFormat = f.OutputFormat
+			actualArgs = a.SubcommandArgs
+		},
+	}
+
+	test.AssertNil(cmd.Eval(append([]string{"", "--output-format=json"}, expectedArgs...), nil), t)
+	test.AssertEq(actualOutputFormat, expectedOutputFormat, t)
+	test.AssertDeepEq(actualArgs, expectedArgs, t)
+}
