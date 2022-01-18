@@ -28,6 +28,7 @@ var s string
 // TODO: add support fur custom unmarshallers, which can be set as the default
 // for a type, or can be registered and called by name
 // TODO: add support for enums somehow
+// TODO: add tests for all unmarshallers
 
 var defaultsToNoValue = []reflect.Type{reflect.TypeOf(b)}
 
