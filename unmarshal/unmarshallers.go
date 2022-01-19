@@ -488,4 +488,35 @@ var valuelessUnmarshallers = map[reflect.Type]ValuelessUnmarshaller{
 
 		return reflect.ValueOf(!invert), nil
 	},
+
+	reflect.TypeOf(i): func(v reflect.Value, t reflect.StructTag) (reflect.Value, error) {
+		return reflect.ValueOf(int(v.Int() + 1)), nil
+	},
+	reflect.TypeOf(i8): func(v reflect.Value, t reflect.StructTag) (reflect.Value, error) {
+		return reflect.ValueOf(int8(v.Int() + 1)), nil
+	},
+	reflect.TypeOf(i16): func(v reflect.Value, t reflect.StructTag) (reflect.Value, error) {
+		return reflect.ValueOf(int16(v.Int() + 1)), nil
+	},
+	reflect.TypeOf(i32): func(v reflect.Value, t reflect.StructTag) (reflect.Value, error) {
+		return reflect.ValueOf(int32(v.Int() + 1)), nil
+	},
+	reflect.TypeOf(i64): func(v reflect.Value, t reflect.StructTag) (reflect.Value, error) {
+		return reflect.ValueOf(v.Int() + 1), nil
+	},
+	reflect.TypeOf(u): func(v reflect.Value, t reflect.StructTag) (reflect.Value, error) {
+		return reflect.ValueOf(uint(v.Uint() + 1)), nil
+	},
+	reflect.TypeOf(u8): func(v reflect.Value, t reflect.StructTag) (reflect.Value, error) {
+		return reflect.ValueOf(uint8(v.Uint() + 1)), nil
+	},
+	reflect.TypeOf(u16): func(v reflect.Value, t reflect.StructTag) (reflect.Value, error) {
+		return reflect.ValueOf(uint16(v.Uint() + 1)), nil
+	},
+	reflect.TypeOf(u32): func(v reflect.Value, t reflect.StructTag) (reflect.Value, error) {
+		return reflect.ValueOf(uint32(v.Uint() + 1)), nil
+	},
+	reflect.TypeOf(u64): func(v reflect.Value, t reflect.StructTag) (reflect.Value, error) {
+		return reflect.ValueOf(v.Uint() + 1), nil
+	},
 }
