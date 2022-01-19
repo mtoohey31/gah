@@ -9,26 +9,11 @@ import (
 	"strconv"
 )
 
-var i int
-var i8 int8
-var i16 int16
-var i32 int32
-var i64 int64
-var u uint
-var u8 uint8
-var u16 uint16
-var u32 uint32
-var u64 uint64
-var f32 float32
-var f64 float64
-var b bool
-var s string
-
 // TODO: add support for enums somehow
 // TODO: add tests for all unmarshallers
 // TODO: support all the types that pflag does
 
-var defaultsToNoValue = []reflect.Type{reflect.TypeOf(b)}
+var defaultsToNoValue = []reflect.Type{reflect.TypeOf(false)}
 
 func TakesValue(f reflect.StructField) bool {
 	s, found := f.Tag.Lookup("takesVal")
@@ -85,7 +70,7 @@ type CustomValueUnmarshallers = map[reflect.Type]ValueUnmarshaller
 type CustomValuelessUnmarshallers = map[reflect.Type]ValuelessUnmarshaller
 
 var valueUnmarshallers = map[reflect.Type]ValueUnmarshaller{
-	reflect.TypeOf(i): func(s string, t reflect.StructTag) (reflect.Value, error) {
+	reflect.TypeOf(int(0)): func(s string, t reflect.StructTag) (reflect.Value, error) {
 		i, err := strconv.ParseInt(s, 10, bits.UintSize)
 
 		if err != nil {
@@ -116,7 +101,7 @@ var valueUnmarshallers = map[reflect.Type]ValueUnmarshaller{
 
 		return reflect.ValueOf(int(i)), nil
 	},
-	reflect.TypeOf(i8): func(s string, t reflect.StructTag) (reflect.Value, error) {
+	reflect.TypeOf(int8(0)): func(s string, t reflect.StructTag) (reflect.Value, error) {
 		i, err := strconv.ParseInt(s, 10, 8)
 
 		if err != nil {
@@ -147,7 +132,7 @@ var valueUnmarshallers = map[reflect.Type]ValueUnmarshaller{
 
 		return reflect.ValueOf(int8(i)), nil
 	},
-	reflect.TypeOf(i16): func(s string, t reflect.StructTag) (reflect.Value, error) {
+	reflect.TypeOf(int16(0)): func(s string, t reflect.StructTag) (reflect.Value, error) {
 		i, err := strconv.ParseInt(s, 10, 16)
 
 		if err != nil {
@@ -178,7 +163,7 @@ var valueUnmarshallers = map[reflect.Type]ValueUnmarshaller{
 
 		return reflect.ValueOf(int16(i)), nil
 	},
-	reflect.TypeOf(i32): func(s string, t reflect.StructTag) (reflect.Value, error) {
+	reflect.TypeOf(int32(0)): func(s string, t reflect.StructTag) (reflect.Value, error) {
 		i, err := strconv.ParseInt(s, 10, 32)
 
 		if err != nil {
@@ -209,7 +194,7 @@ var valueUnmarshallers = map[reflect.Type]ValueUnmarshaller{
 
 		return reflect.ValueOf(int32(i)), nil
 	},
-	reflect.TypeOf(i64): func(s string, t reflect.StructTag) (reflect.Value, error) {
+	reflect.TypeOf(int64(0)): func(s string, t reflect.StructTag) (reflect.Value, error) {
 		i, err := strconv.ParseInt(s, 10, 64)
 
 		if err != nil {
@@ -240,7 +225,7 @@ var valueUnmarshallers = map[reflect.Type]ValueUnmarshaller{
 
 		return reflect.ValueOf(i), err
 	},
-	reflect.TypeOf(u): func(s string, t reflect.StructTag) (reflect.Value, error) {
+	reflect.TypeOf(uint(0)): func(s string, t reflect.StructTag) (reflect.Value, error) {
 		i, err := strconv.ParseUint(s, 10, bits.UintSize)
 
 		if err != nil {
@@ -271,7 +256,7 @@ var valueUnmarshallers = map[reflect.Type]ValueUnmarshaller{
 
 		return reflect.ValueOf(uint(i)), nil
 	},
-	reflect.TypeOf(u8): func(s string, t reflect.StructTag) (reflect.Value, error) {
+	reflect.TypeOf(uint8(0)): func(s string, t reflect.StructTag) (reflect.Value, error) {
 		i, err := strconv.ParseUint(s, 10, 8)
 
 		if err != nil {
@@ -302,7 +287,7 @@ var valueUnmarshallers = map[reflect.Type]ValueUnmarshaller{
 
 		return reflect.ValueOf(uint8(i)), nil
 	},
-	reflect.TypeOf(u16): func(s string, t reflect.StructTag) (reflect.Value, error) {
+	reflect.TypeOf(uint16(0)): func(s string, t reflect.StructTag) (reflect.Value, error) {
 		i, err := strconv.ParseUint(s, 10, 16)
 
 		if err != nil {
@@ -333,7 +318,7 @@ var valueUnmarshallers = map[reflect.Type]ValueUnmarshaller{
 
 		return reflect.ValueOf(uint16(i)), nil
 	},
-	reflect.TypeOf(u32): func(s string, t reflect.StructTag) (reflect.Value, error) {
+	reflect.TypeOf(uint32(0)): func(s string, t reflect.StructTag) (reflect.Value, error) {
 		i, err := strconv.ParseUint(s, 10, 32)
 
 		if err != nil {
@@ -364,7 +349,7 @@ var valueUnmarshallers = map[reflect.Type]ValueUnmarshaller{
 
 		return reflect.ValueOf(uint32(i)), nil
 	},
-	reflect.TypeOf(u64): func(s string, t reflect.StructTag) (reflect.Value, error) {
+	reflect.TypeOf(uint64(0)): func(s string, t reflect.StructTag) (reflect.Value, error) {
 		i, err := strconv.ParseUint(s, 10, 64)
 
 		if err != nil {
@@ -395,7 +380,7 @@ var valueUnmarshallers = map[reflect.Type]ValueUnmarshaller{
 
 		return reflect.ValueOf(i), nil
 	},
-	reflect.TypeOf(f32): func(s string, t reflect.StructTag) (reflect.Value, error) {
+	reflect.TypeOf(float32(0.0)): func(s string, t reflect.StructTag) (reflect.Value, error) {
 		i, err := strconv.ParseFloat(s, 32)
 
 		if err != nil {
@@ -426,7 +411,7 @@ var valueUnmarshallers = map[reflect.Type]ValueUnmarshaller{
 
 		return reflect.ValueOf(float32(i)), nil
 	},
-	reflect.TypeOf(f64): func(s string, t reflect.StructTag) (reflect.Value, error) {
+	reflect.TypeOf(float64(0.0)): func(s string, t reflect.StructTag) (reflect.Value, error) {
 		i, err := strconv.ParseFloat(s, 64)
 
 		if err != nil {
@@ -458,7 +443,7 @@ var valueUnmarshallers = map[reflect.Type]ValueUnmarshaller{
 		return reflect.ValueOf(float64(i)), nil
 	},
 
-	reflect.TypeOf(b): func(s string, t reflect.StructTag) (reflect.Value, error) {
+	reflect.TypeOf(false): func(s string, t reflect.StructTag) (reflect.Value, error) {
 		_, invert := t.Lookup("invert")
 		b, err := strconv.ParseBool(s)
 
@@ -469,7 +454,7 @@ var valueUnmarshallers = map[reflect.Type]ValueUnmarshaller{
 		}
 	},
 
-	reflect.TypeOf(s): func(s string, t reflect.StructTag) (reflect.Value, error) {
+	reflect.TypeOf(""): func(s string, t reflect.StructTag) (reflect.Value, error) {
 		_, path := t.Lookup("path")
 		if path {
 			_, err := os.Stat(s)
@@ -483,40 +468,40 @@ var valueUnmarshallers = map[reflect.Type]ValueUnmarshaller{
 }
 
 var valuelessUnmarshallers = map[reflect.Type]ValuelessUnmarshaller{
-	reflect.TypeOf(b): func(_ reflect.Value, t reflect.StructTag) (reflect.Value, error) {
+	reflect.TypeOf(false): func(_ reflect.Value, t reflect.StructTag) (reflect.Value, error) {
 		_, invert := t.Lookup("invert")
 
 		return reflect.ValueOf(!invert), nil
 	},
 
-	reflect.TypeOf(i): func(v reflect.Value, t reflect.StructTag) (reflect.Value, error) {
+	reflect.TypeOf(int(0)): func(v reflect.Value, t reflect.StructTag) (reflect.Value, error) {
 		return reflect.ValueOf(int(v.Int() + 1)), nil
 	},
-	reflect.TypeOf(i8): func(v reflect.Value, t reflect.StructTag) (reflect.Value, error) {
+	reflect.TypeOf(int8(0)): func(v reflect.Value, t reflect.StructTag) (reflect.Value, error) {
 		return reflect.ValueOf(int8(v.Int() + 1)), nil
 	},
-	reflect.TypeOf(i16): func(v reflect.Value, t reflect.StructTag) (reflect.Value, error) {
+	reflect.TypeOf(int16(0)): func(v reflect.Value, t reflect.StructTag) (reflect.Value, error) {
 		return reflect.ValueOf(int16(v.Int() + 1)), nil
 	},
-	reflect.TypeOf(i32): func(v reflect.Value, t reflect.StructTag) (reflect.Value, error) {
+	reflect.TypeOf(int32(0)): func(v reflect.Value, t reflect.StructTag) (reflect.Value, error) {
 		return reflect.ValueOf(int32(v.Int() + 1)), nil
 	},
-	reflect.TypeOf(i64): func(v reflect.Value, t reflect.StructTag) (reflect.Value, error) {
+	reflect.TypeOf(int64(0)): func(v reflect.Value, t reflect.StructTag) (reflect.Value, error) {
 		return reflect.ValueOf(v.Int() + 1), nil
 	},
-	reflect.TypeOf(u): func(v reflect.Value, t reflect.StructTag) (reflect.Value, error) {
+	reflect.TypeOf(uint(0)): func(v reflect.Value, t reflect.StructTag) (reflect.Value, error) {
 		return reflect.ValueOf(uint(v.Uint() + 1)), nil
 	},
-	reflect.TypeOf(u8): func(v reflect.Value, t reflect.StructTag) (reflect.Value, error) {
+	reflect.TypeOf(uint8(0)): func(v reflect.Value, t reflect.StructTag) (reflect.Value, error) {
 		return reflect.ValueOf(uint8(v.Uint() + 1)), nil
 	},
-	reflect.TypeOf(u16): func(v reflect.Value, t reflect.StructTag) (reflect.Value, error) {
+	reflect.TypeOf(uint16(0)): func(v reflect.Value, t reflect.StructTag) (reflect.Value, error) {
 		return reflect.ValueOf(uint16(v.Uint() + 1)), nil
 	},
-	reflect.TypeOf(u32): func(v reflect.Value, t reflect.StructTag) (reflect.Value, error) {
+	reflect.TypeOf(uint32(0)): func(v reflect.Value, t reflect.StructTag) (reflect.Value, error) {
 		return reflect.ValueOf(uint32(v.Uint() + 1)), nil
 	},
-	reflect.TypeOf(u64): func(v reflect.Value, t reflect.StructTag) (reflect.Value, error) {
+	reflect.TypeOf(uint64(0)): func(v reflect.Value, t reflect.StructTag) (reflect.Value, error) {
 		return reflect.ValueOf(v.Uint() + 1), nil
 	},
 }
