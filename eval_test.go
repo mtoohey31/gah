@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"testing"
 
-	"mtoohey.com/gah/test"
+	"github.com/stretchr/testify/require"
 	"mtoohey.com/gah/unmarshal"
 )
 
@@ -15,22 +15,26 @@ var simpleVersionedCmd = Cmd{
 
 func TestNoArgs(t *testing.T) {
 	err := simpleVersionedCmd.Eval([]string{""}, nil)
-	test.AssertNil(err, t)
+	require.NoError(t, err)
 }
 
 func TestHelp(t *testing.T) {
-	test.AssertNil(simpleVersionedCmd.Eval([]string{"", "-h"}, nil), t)
-	test.AssertNil(simpleVersionedCmd.Eval([]string{"", "-h", "extra", "ignored", "args"}, nil), t)
-	test.AssertNil(simpleVersionedCmd.Eval([]string{"", "--help"}, nil), t)
-	test.AssertNil(simpleVersionedCmd.Eval([]string{"", "--help", "extra", "ignored", "args"}, nil), t)
-	test.AssertNil(simpleVersionedCmd.Eval([]string{"", "help"}, nil), t)
+	require.NoError(t, simpleVersionedCmd.Eval([]string{"", "-h"}, nil))
+	require.NoError(t, simpleVersionedCmd.Eval(
+		[]string{"", "-h", "extra", "ignored", "args"}, nil))
+	require.NoError(t, simpleVersionedCmd.Eval([]string{"", "--help"}, nil))
+	require.NoError(t, simpleVersionedCmd.Eval(
+		[]string{"", "--help", "extra", "ignored", "args"}, nil))
+	require.NoError(t, simpleVersionedCmd.Eval([]string{"", "help"}, nil))
 }
 
 func TestVersionSuccess(t *testing.T) {
-	test.AssertNil(simpleVersionedCmd.Eval([]string{"", "-v"}, nil), t)
-	test.AssertNil(simpleVersionedCmd.Eval([]string{"", "-v", "extra", "ignored", "args"}, nil), t)
-	test.AssertNil(simpleVersionedCmd.Eval([]string{"", "--version"}, nil), t)
-	test.AssertNil(simpleVersionedCmd.Eval([]string{"", "--version", "extra", "ignored", "args"}, nil), t)
+	require.NoError(t, simpleVersionedCmd.Eval([]string{"", "-v"}, nil))
+	require.NoError(t, simpleVersionedCmd.Eval(
+		[]string{"", "-v", "extra", "ignored", "args"}, nil))
+	require.NoError(t, simpleVersionedCmd.Eval([]string{"", "--version"}, nil))
+	require.NoError(t, simpleVersionedCmd.Eval(
+		[]string{"", "--version", "extra", "ignored", "args"}, nil))
 }
 
 var simpleUnversionedCmd = Cmd{
@@ -38,14 +42,14 @@ var simpleUnversionedCmd = Cmd{
 }
 
 func TestVersionFailure(t *testing.T) {
-	test.AssertErrIs(simpleUnversionedCmd.Eval([]string{"", "-v"}, nil),
-		&ErrUnexpectedFlag{}, t)
-	test.AssertErrIs(simpleUnversionedCmd.Eval([]string{"", "-v", "extra", "ignored",
-		"args"}, nil), &ErrUnexpectedFlag{}, t)
-	test.AssertErrIs(simpleUnversionedCmd.Eval([]string{"", "--version"}, nil),
-		&ErrUnexpectedFlag{}, t)
-	test.AssertErrIs(simpleUnversionedCmd.Eval([]string{"", "--version", "extra",
-		"ignored", "args"}, nil), &ErrUnexpectedFlag{}, t)
+	require.ErrorIs(t, simpleUnversionedCmd.Eval([]string{"", "-v"}, nil),
+		&ErrUnexpectedFlag{})
+	require.ErrorIs(t, simpleUnversionedCmd.Eval([]string{"", "-v", "extra", "ignored",
+		"args"}, nil), &ErrUnexpectedFlag{})
+	require.ErrorIs(t, simpleUnversionedCmd.Eval([]string{"", "--version"}, nil),
+		&ErrUnexpectedFlag{})
+	require.ErrorIs(t, simpleUnversionedCmd.Eval([]string{"", "--version", "extra",
+		"ignored", "args"}, nil), &ErrUnexpectedFlag{})
 }
 
 func TestFlags(t *testing.T) {
@@ -64,14 +68,16 @@ func TestFlags(t *testing.T) {
 
 	expected := "-test-value"
 
-	test.AssertNil(cmd.Eval([]string{"", "-1", "--test-two", expected}, []string{}), t)
-	test.Assert(test1, t)
-	test.AssertEq(test2, expected, t)
-	test.AssertNil(cmd.Eval([]string{"", "--test-1", "--test-two", expected}, []string{}), t)
-	test.Assert(test1, t)
-	test.AssertEq(test2, expected, t)
-	test.AssertErrIs(cmd.Eval([]string{"", "--test-two"}, []string{}), &ErrExpectedFlagValue{}, t)
-	test.AssertErrIs(cmd.Eval([]string{"", "--test-2", expected}, []string{}), &ErrUnexpectedFlag{}, t)
+	require.NoError(t, cmd.Eval([]string{"", "-1", "--test-two", expected}, []string{}))
+	require.True(t, test1)
+	require.Equal(t, test2, expected)
+	require.NoError(t, cmd.Eval([]string{"", "--test-1", "--test-two", expected}, []string{}))
+	require.True(t, test1)
+	require.Equal(t, test2, expected)
+	require.ErrorIs(t, cmd.Eval([]string{"", "--test-two"}, []string{}),
+		&ErrExpectedFlagValue{})
+	require.ErrorIs(t, cmd.Eval([]string{"", "--test-2", expected}, []string{}),
+		&ErrUnexpectedFlag{})
 }
 
 func TestDefaults(t *testing.T) {
@@ -88,9 +94,9 @@ func TestDefaults(t *testing.T) {
 		},
 	}
 
-	test.AssertNil(cmd.Eval([]string{""}, []string{}), t)
-	test.AssertEq(test1, 7, t)
-	test.AssertEq(test2, "test2", t)
+	require.NoError(t, cmd.Eval([]string{""}, []string{}))
+	require.Equal(t, test1, 7)
+	require.Equal(t, test2, "test2")
 }
 
 func TestArgs(t *testing.T) {
@@ -111,22 +117,22 @@ func TestArgs(t *testing.T) {
 		},
 	}
 
-	test.AssertNil(cmd.Eval([]string{"", "value1", "1", "2", "3", "4", "5", "6"},
-		[]string{}), t)
-	test.AssertEq(test1, "value1", t)
-	test.AssertDeepEq(test2, []int{1, 2, 3}, t)
-	test.AssertDeepEq(test3, [3]string{"4", "5", "6"}, t)
-	test.AssertErrIs(cmd.Eval([]string{"", "value1", "1", "2", "3", "4", "5"},
-		[]string{}), &ErrExpectedArgumentValue{}, t)
-	test.AssertErrIs(cmd.Eval([]string{"", "value1", "-5", "a", "b", "c"},
-		[]string{}), &ErrUnexpectedFlag{}, t)
-	test.AssertNil(cmd.Eval([]string{"", "value1", "--", "-5", "a", "b", "c"},
-		[]string{}), t)
-	test.AssertEq(test1, "value1", t)
-	test.AssertDeepEq(test2, []int{-5}, t)
-	test.AssertDeepEq(test3, [3]string{"a", "b", "c"}, t)
-	test.AssertErrIs(cmd.Eval([]string{"", "value1", "a", "b", "c"},
-		[]string{}), &ErrUnmarshallingArgument{}, t)
+	require.NoError(t, cmd.Eval([]string{"", "value1", "1", "2", "3", "4", "5", "6"},
+		[]string{}))
+	require.Equal(t, test1, "value1")
+	require.Equal(t, test2, []int{1, 2, 3})
+	require.Equal(t, test3, [3]string{"4", "5", "6"})
+	require.ErrorIs(t, cmd.Eval([]string{"", "value1", "1", "2", "3", "4", "5"},
+		[]string{}), &ErrExpectedArgumentValue{})
+	require.ErrorIs(t, cmd.Eval([]string{"", "value1", "-5", "a", "b", "c"},
+		[]string{}), &ErrUnexpectedFlag{})
+	require.NoError(t, cmd.Eval([]string{"", "value1", "--", "-5", "a", "b", "c"},
+		[]string{}))
+	require.Equal(t, test1, "value1")
+	require.Equal(t, test2, []int{-5})
+	require.Equal(t, test3, [3]string{"a", "b", "c"})
+	require.ErrorIs(t, cmd.Eval([]string{"", "value1", "a", "b", "c"},
+		[]string{}), &ErrUnmarshallingArgument{})
 }
 
 func TestCustomUnmarshallers(t *testing.T) {
@@ -158,10 +164,10 @@ func TestCustomUnmarshallers(t *testing.T) {
 		},
 	}
 
-	test.AssertNil(cmd.Eval([]string{"", "--test-1", "", "asdf"}, nil), t)
-	test.Assert(test1, t)
-	test.Assert(!test2, t)
-	test.Assert(!test3, t)
+	require.NoError(t, cmd.Eval([]string{"", "--test-1", "", "asdf"}, nil))
+	require.True(t, test1)
+	require.True(t, !test2)
+	require.True(t, !test3)
 }
 
 func TestSubcommandArgs(t *testing.T) {
@@ -181,7 +187,8 @@ func TestSubcommandArgs(t *testing.T) {
 		},
 	}
 
-	test.AssertNil(cmd.Eval(append([]string{"", "--output-format=json"}, expectedArgs...), nil), t)
-	test.AssertEq(actualOutputFormat, expectedOutputFormat, t)
-	test.AssertDeepEq(actualArgs, expectedArgs, t)
+	require.NoError(t,
+		cmd.Eval(append([]string{"", "--output-format=json"}, expectedArgs...), nil))
+	require.Equal(t, actualOutputFormat, expectedOutputFormat)
+	require.Equal(t, actualArgs, expectedArgs)
 }
