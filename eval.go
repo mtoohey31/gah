@@ -255,7 +255,6 @@ func evalAndRun(c Cmd, inputArgs []string, parentNames []string) error {
 
 			_, found := remainingArgs[0].Field().Tag.Lookup("subcommandArgs")
 			if found {
-				// TODO: validate that this is safe in validate testing function
 				args.Elem().FieldByIndex(remainingArgs[0].Field().Index).Set(
 					reflect.ValueOf(inputArgs[i:]))
 				break
@@ -370,9 +369,6 @@ func getFlagMaps(flags []flagInfo) (map[rune]*flagInfo, map[string]*flagInfo) {
 		short, found := flags[i].field.Tag.Lookup("short")
 		if found {
 			runes := []rune(short)
-			if len(runes) != 1 {
-				// TODO: provide error to developer about invalid short flag
-			}
 			validShort[runes[0]] = &flags[i]
 		}
 

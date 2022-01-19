@@ -7,8 +7,6 @@ package gah
 import "mtoohey.com/gah/unmarshal"
 
 // TODO: first class completion support
-// TODO: provide validator function that people can run in their tests that
-// will scan the cmd declaration for errors
 // TODO: godocs!
 // TODO: support default subcommands
 
