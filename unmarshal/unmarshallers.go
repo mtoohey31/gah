@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"math/bits"
+	"net"
 	"os"
 	"reflect"
 	"strconv"
@@ -470,6 +471,16 @@ var valueUnmarshallers = map[reflect.Type]ValueUnmarshaller{
 	reflect.TypeOf(time.Duration(0)): func(s string, t reflect.StructTag) (reflect.Value, error) {
 		d, err := time.ParseDuration(s)
 		return reflect.ValueOf(d), err
+	},
+
+	reflect.TypeOf(net.IP([]byte{})): func(s string, t reflect.StructTag) (reflect.Value, error) {
+		ip := net.ParseIP(s)
+		if ip == nil {
+			return reflect.ValueOf(nil), errors.New(fmt.Sprintf(
+				"string \"%s\" is not a valid IP address", s))
+		} else {
+			return reflect.ValueOf(ip), nil
+		}
 	},
 }
 
