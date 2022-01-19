@@ -7,6 +7,7 @@ import (
 	"os"
 	"reflect"
 	"strconv"
+	"time"
 )
 
 // TODO: add support for enums somehow
@@ -464,6 +465,11 @@ var valueUnmarshallers = map[reflect.Type]ValueUnmarshaller{
 		// TODO: add file, dir, executable, socket, etc. available in unix test
 
 		return reflect.ValueOf(s), nil
+	},
+
+	reflect.TypeOf(time.Duration(0)): func(s string, t reflect.StructTag) (reflect.Value, error) {
+		d, err := time.ParseDuration(s)
+		return reflect.ValueOf(d), err
 	},
 }
 
