@@ -1,6 +1,7 @@
 package unmarshal
 
 import (
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"math/bits"
@@ -466,6 +467,11 @@ var valueUnmarshallers = map[reflect.Type]ValueUnmarshaller{
 		// TODO: add file, dir, executable, socket, etc. available in unix test
 
 		return reflect.ValueOf(s), nil
+	},
+
+	reflect.TypeOf([]byte{}): func(s string, t reflect.StructTag) (reflect.Value, error) {
+		bytes, err := hex.DecodeString(s)
+		return reflect.ValueOf(bytes), err
 	},
 
 	reflect.TypeOf(time.Duration(0)): func(s string, t reflect.StructTag) (reflect.Value, error) {
