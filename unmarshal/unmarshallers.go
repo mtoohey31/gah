@@ -482,6 +482,10 @@ var valueUnmarshallers = map[reflect.Type]ValueUnmarshaller{
 			return reflect.ValueOf(ip), nil
 		}
 	},
+	reflect.TypeOf(net.IPNet{}): func(s string, t reflect.StructTag) (reflect.Value, error) {
+		_, ipNet, err := net.ParseCIDR(s)
+		return reflect.ValueOf(ipNet), err
+	},
 }
 
 var valuelessUnmarshallers = map[reflect.Type]ValuelessUnmarshaller{
