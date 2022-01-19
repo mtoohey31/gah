@@ -7,7 +7,6 @@ import (
 	"os"
 	"reflect"
 	"strconv"
-	"strings"
 )
 
 var i int
@@ -27,6 +26,7 @@ var s string
 
 // TODO: add support for enums somehow
 // TODO: add tests for all unmarshallers
+// TODO: support all the types that pflag does
 
 var defaultsToNoValue = []reflect.Type{reflect.TypeOf(b)}
 
@@ -34,7 +34,7 @@ func TakesValue(f reflect.StructField) bool {
 	s, found := f.Tag.Lookup("takesVal")
 
 	if found {
-		takesVal, err := unmarshalBool(s)
+		takesVal, err := strconv.ParseBool(s)
 
 		if err == nil {
 			return takesVal
@@ -76,24 +76,6 @@ func GetValuelessUnmarshaller(t reflect.Type, g reflect.StructTag,
 		return u
 	}
 	panic(fmt.Sprintf("no valueless unmarshaller for type %s", t.Name()))
-}
-
-func unmarshalBool(s string) (bool, error) {
-	trimmed := strings.ToLower(strings.TrimSpace(s))
-
-	for _, v := range []string{"0", "n", "no", "f", "false"} {
-		if trimmed == v {
-			return false, nil
-		}
-	}
-
-	for _, v := range []string{"1", "y", "yes", "t", "true"} {
-		if trimmed == v {
-			return true, nil
-		}
-	}
-
-	return false, errors.New(fmt.Sprintf("invalid syntax \"%s\"", s))
 }
 
 type ValueUnmarshaller = func(string, reflect.StructTag) (reflect.Value, error)
@@ -478,7 +460,7 @@ var valueUnmarshallers = map[reflect.Type]ValueUnmarshaller{
 
 	reflect.TypeOf(b): func(s string, t reflect.StructTag) (reflect.Value, error) {
 		_, invert := t.Lookup("invert")
-		b, err := unmarshalBool(s)
+		b, err := strconv.ParseBool(s)
 
 		if err == nil {
 			return reflect.ValueOf(invert != b), nil

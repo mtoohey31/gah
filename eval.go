@@ -240,6 +240,8 @@ func evalAndRun(c Cmd, inputArgs []string, parentNames []string) error {
 				}
 			}
 		} else {
+			// TODO: be appropriately greedy when there are fixed quantity arguments
+			// after variable ones
 			if len(remainingArgs) == 0 {
 				if arg == "help" {
 					// NOTE: we don't need to search for subcommand names here because
@@ -522,28 +524,24 @@ func getArgs(argsType reflect.Type) []argInfo {
 	for i, field := range reflect.VisibleFields(argsType) {
 		switch field.Type.Kind() {
 		case reflect.Slice:
+			min := 0
 			minStr, found := field.Tag.Lookup("min")
-			var min int
 			if found {
 				var err error
 				min, err = strconv.Atoi(minStr)
 				if err != nil {
 					panic(err)
 				}
-			} else {
-				min = 0
 			}
 
+			max := ^int(0)
 			maxStr, found := field.Tag.Lookup("max")
-			var max int
 			if found {
 				var err error
 				max, err = strconv.Atoi(maxStr)
 				if err != nil {
 					panic(err)
 				}
-			} else {
-				max = ^int(0)
 			}
 
 			argInfoItems[i] = &sliceArgInfo{min: min, max: max, field: field}
