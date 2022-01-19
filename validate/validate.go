@@ -11,27 +11,58 @@ import (
 	"mtoohey.com/gah/unmarshal"
 )
 
-// TODO: make everything recursive
-
-func ValidateTest(c gah.Cmd, t *testing.T) {
-	err := Validate(c)
+func ValidateTest(c gah.Cmd, recursive bool, t *testing.T) {
+	err := Validate(c, recursive)
 	if err != nil {
 		t.Fatal(err)
 	}
 }
 
-func Validate(c gah.Cmd) error {
-	for _, v := range validators {
+func Validate(c gah.Cmd, recursive bool) error {
+	for _, v := range universalValidators {
 		err := v(c)
 		if err != nil {
 			return err
 		}
 	}
+
+	if reflect.TypeOf(c.Content) == reflect.TypeOf([]gah.Cmd{}) {
+		for _, v := range subcommandValidators {
+			err := v(c)
+			if err != nil {
+				return err
+			}
+		}
+
+		if recursive {
+			for _, subcommand := range c.Content.([]gah.Cmd) {
+				err := Validate(subcommand, recursive)
+				if err != nil {
+					return err
+				}
+			}
+		}
+	} else {
+		for _, v := range functionValidators {
+			err := v(c)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
 	return nil
 }
 
-var validators = []func(gah.Cmd) error{
+var universalValidators = []func(gah.Cmd) error{
 	validateContent,
+}
+
+var subcommandValidators = []func(gah.Cmd) error{
+	validateNoConflictingSubcommands,
+}
+
+var functionValidators = []func(gah.Cmd) error{
 	validateNoFailingParams,
 	validateValueUmarshallers,
 	validateValuelessUmarshallers,
@@ -41,7 +72,6 @@ var validators = []func(gah.Cmd) error{
 	validateNoMultiRuneShortFlags,
 	validateNoConflictingShortFlags,
 	validateNoConflictingLongFlags,
-	validateNoConflictingSubcommands,
 	validateNoFailingDefaults,
 	validateOneOrFewerVariableArguments,
 }
