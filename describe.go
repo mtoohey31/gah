@@ -8,7 +8,6 @@ import "mtoohey.com/gah/unmarshal"
 
 // TODO: first class completion support
 // TODO: godocs!
-// TODO: support default subcommands
 
 type Cmd struct {
 	Name        string

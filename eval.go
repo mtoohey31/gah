@@ -43,7 +43,7 @@ func (c Cmd) EvalMulticall(args []string) {
 
 func evalSubcommand(c Cmd, args []string, parentNames []string) error {
 	if len(args) < 2 {
-		return ErrExpectedSubcommand
+		c.Subcommands[0].Eval(args[1:], append(parentNames, c.Name))
 	}
 	arg := args[1]
 	for _, subcommand := range c.Subcommands {
