@@ -40,6 +40,30 @@ func TakesValue(f reflect.StructField) bool {
 	return true
 }
 
+var defaultsToNoNonElementWise = []reflect.Type{reflect.TypeOf(byte(0))}
+
+func ElementWise(f reflect.StructField) bool {
+	s, found := f.Tag.Lookup("elementWise")
+
+	if found {
+		elementWise, err := strconv.ParseBool(s)
+
+		if err == nil {
+			return elementWise
+		} else {
+			panic(err)
+		}
+	}
+
+	for _, v := range defaultsToNoNonElementWise {
+		if f.Type.Elem() == v {
+			return false
+		}
+	}
+
+	return true
+}
+
 func GetValueUnmarshaller(t reflect.Type, g reflect.StructTag,
 	c CustomValueUnmarshallers) ValueUnmarshaller {
 	u, found := c[t]

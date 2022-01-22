@@ -18,7 +18,8 @@ type Cmd struct {
 	Description string
 	// TODO: restrict the values of this as much as possible with some
 	// modification of `interface{ []Cmd | interface{} }`
-	Content                      interface{}
+	Function                     interface{}
+	Subcommands                  []Cmd
 	CustomValueUnmarshallers     unmarshal.CustomValueUnmarshallers
 	CustomValuelessUnmarshallers unmarshal.CustomValuelessUnmarshallers
 }

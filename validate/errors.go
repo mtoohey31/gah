@@ -6,18 +6,49 @@ import (
 	"strings"
 )
 
-type ErrInvalidContent struct {
-	contentType reflect.Type
+type ErrFunctionIsNotFunction struct {
+	functionKind reflect.Kind
 }
 
-func (e *ErrInvalidContent) Error() string {
-	return fmt.Sprintf("invalid content type %v, should be one of []gahCmd or func(struct{...}, struct{...})",
-		e.contentType)
+func (e *ErrFunctionIsNotFunction) Error() string {
+	return fmt.Sprintf("provided function is not a function, found kind %v",
+		e.functionKind)
 }
 
-func (e *ErrInvalidContent) Is(target error) bool {
+func (e *ErrFunctionIsNotFunction) Is(target error) bool {
 	var t interface{} = target
-	_, ok := t.(*ErrInvalidContent)
+	_, ok := t.(*ErrFunctionIsNotFunction)
+	return ok
+}
+
+type ErrFunctionTakesNonTwoArgs struct {
+	numFunctionArgs int
+}
+
+func (e *ErrFunctionTakesNonTwoArgs) Error() string {
+	return fmt.Sprintf("provided function takes the wrong number of args: %d, should take 2",
+		e.numFunctionArgs)
+}
+
+func (e *ErrFunctionTakesNonTwoArgs) Is(target error) bool {
+	var t interface{} = target
+	_, ok := t.(*ErrFunctionTakesNonTwoArgs)
+	return ok
+}
+
+type ErrFunctionTakesNonStructArg struct {
+	argumentIndex int
+	argumentKind  reflect.Kind
+}
+
+func (e *ErrFunctionTakesNonStructArg) Error() string {
+	return fmt.Sprintf("function argument %d is not of kind struct, found kind: %v",
+		e.argumentIndex, e.argumentKind)
+}
+
+func (e *ErrFunctionTakesNonStructArg) Is(target error) bool {
+	var t interface{} = target
+	_, ok := t.(*ErrFunctionTakesNonStructArg)
 	return ok
 }
 
@@ -207,5 +238,17 @@ func (e *ErrMultipleVariableArguments) Error() string {
 func (e *ErrMultipleVariableArguments) Is(target error) bool {
 	var t interface{} = target
 	_, ok := t.(*ErrMultipleVariableArguments)
+	return ok
+}
+
+type ErrArgsAndSubcommands struct{}
+
+func (e *ErrArgsAndSubcommands) Error() string {
+	return "command contains both arguments and subcommands, these are mutually exclusive"
+}
+
+func (e *ErrArgsAndSubcommands) Is(target error) bool {
+	var t interface{} = target
+	_, ok := t.(*ErrArgsAndSubcommands)
 	return ok
 }

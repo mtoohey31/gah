@@ -19,30 +19,7 @@ func ValidateTest(c gah.Cmd, recursive bool, t *testing.T) {
 }
 
 func Validate(c gah.Cmd, recursive bool) error {
-	for _, v := range universalValidators {
-		err := v(c)
-		if err != nil {
-			return err
-		}
-	}
-
-	if reflect.TypeOf(c.Content) == reflect.TypeOf([]gah.Cmd{}) {
-		for _, v := range subcommandValidators {
-			err := v(c)
-			if err != nil {
-				return err
-			}
-		}
-
-		if recursive {
-			for _, subcommand := range c.Content.([]gah.Cmd) {
-				err := Validate(subcommand, recursive)
-				if err != nil {
-					return err
-				}
-			}
-		}
-	} else {
+	if c.Function != nil {
 		for _, v := range functionValidators {
 			err := v(c)
 			if err != nil {
@@ -51,11 +28,32 @@ func Validate(c gah.Cmd, recursive bool) error {
 		}
 	}
 
-	return nil
-}
+	if c.Subcommands != nil {
+		for _, v := range subcommandValidators {
+			err := v(c)
+			if err != nil {
+				return err
+			}
+		}
 
-var universalValidators = []func(gah.Cmd) error{
-	validateContent,
+		if recursive {
+			for _, subcommand := range c.Subcommands {
+				err := Validate(subcommand, recursive)
+				if err != nil {
+					return err
+				}
+			}
+		}
+	}
+
+	for _, v := range universalValidators {
+		err := v(c)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 var subcommandValidators = []func(gah.Cmd) error{
@@ -63,6 +61,9 @@ var subcommandValidators = []func(gah.Cmd) error{
 }
 
 var functionValidators = []func(gah.Cmd) error{
+	validateFunctionIsFunction,
+	validateFunctionTakesTwoArgs,
+	validateFunctionTakesStructArgs,
 	validateNoFailingParams,
 	validateValueUmarshallers,
 	validateValuelessUmarshallers,
@@ -76,30 +77,50 @@ var functionValidators = []func(gah.Cmd) error{
 	validateOneOrFewerVariableArguments,
 }
 
-func validateContent(c gah.Cmd) error {
-	contentType := reflect.TypeOf(c.Content)
+var universalValidators = []func(gah.Cmd) error{
+	validateNoArgsAndSubcommands,
+}
 
-	if contentType == reflect.TypeOf([]gah.Cmd{}) {
-		return nil
+func validateFunctionIsFunction(c gah.Cmd) error {
+	functionKind := reflect.TypeOf(c.Function).Kind()
+
+	if functionKind != reflect.Func {
+		return &ErrFunctionIsNotFunction{functionKind: functionKind}
 	}
 
-	if contentType.Kind() == reflect.Func && contentType.NumIn() == 2 &&
-		contentType.In(0).Kind() == reflect.Struct &&
-		contentType.In(1).Kind() == reflect.Struct {
-		return nil
+	return nil
+}
+
+func validateFunctionTakesTwoArgs(c gah.Cmd) error {
+	numIn := reflect.TypeOf(c.Function).NumIn()
+
+	if numIn != 2 {
+		return &ErrFunctionTakesNonTwoArgs{numFunctionArgs: numIn}
 	}
 
-	return &ErrInvalidContent{contentType: contentType}
+	return nil
+}
+
+func validateFunctionTakesStructArgs(c gah.Cmd) error {
+	inZeroKind := reflect.TypeOf(c.Function).In(0).Kind()
+
+	if inZeroKind != reflect.Struct {
+		return &ErrFunctionTakesNonStructArg{argumentIndex: 0, argumentKind: inZeroKind}
+	}
+
+	inOneKind := reflect.TypeOf(c.Function).In(1).Kind()
+
+	if inOneKind != reflect.Struct {
+		return &ErrFunctionTakesNonStructArg{argumentIndex: 1, argumentKind: inOneKind}
+	}
+
+	return nil
 }
 
 func validateNoFailingParams(c gah.Cmd) error {
-	contentType := reflect.TypeOf(c.Content)
+	functionType := reflect.TypeOf(c.Function)
 
-	if contentType == reflect.TypeOf([]gah.Cmd{}) {
-		return nil
-	}
-
-	for _, field := range reflect.VisibleFields(contentType.In(0)) {
+	for _, field := range reflect.VisibleFields(functionType.In(0)) {
 		takesVal, found := field.Tag.Lookup("takesVal")
 		if found {
 			_, err := strconv.ParseBool(takesVal)
@@ -130,7 +151,7 @@ func validateNoFailingParams(c gah.Cmd) error {
 		}
 	}
 
-	for _, field := range reflect.VisibleFields(contentType.In(1)) {
+	for _, field := range reflect.VisibleFields(functionType.In(1)) {
 		min, found := field.Tag.Lookup("min")
 		if found {
 			_, err := strconv.Atoi(min)
@@ -174,11 +195,7 @@ func validateNoFailingParams(c gah.Cmd) error {
 }
 
 func validateValueUmarshallers(c gah.Cmd) (err error) {
-	contentType := reflect.TypeOf(c.Content)
-
-	if contentType == reflect.TypeOf([]gah.Cmd{}) {
-		return nil
-	}
+	functionType := reflect.TypeOf(c.Function)
 
 	var currentValueType reflect.Type
 
@@ -188,14 +205,14 @@ func validateValueUmarshallers(c gah.Cmd) (err error) {
 		}
 	}()
 
-	for _, field := range reflect.VisibleFields(contentType.In(0)) {
+	for _, field := range reflect.VisibleFields(functionType.In(0)) {
 		if unmarshal.TakesValue(field) {
 			currentValueType = field.Type
 			unmarshal.GetValueUnmarshaller(field.Type, field.Tag, nil)
 		}
 	}
 
-	for _, field := range reflect.VisibleFields(contentType.In(1)) {
+	for _, field := range reflect.VisibleFields(functionType.In(1)) {
 		if unmarshal.TakesValue(field) {
 			switch field.Type.Kind() {
 			case reflect.Slice:
@@ -213,21 +230,15 @@ func validateValueUmarshallers(c gah.Cmd) (err error) {
 }
 
 func validateValuelessUmarshallers(c gah.Cmd) (err error) {
-	contentType := reflect.TypeOf(c.Content)
-
-	if contentType == reflect.TypeOf([]gah.Cmd{}) {
-		return nil
-	}
-
 	var currentValueType reflect.Type
 
 	defer func() {
 		if r := recover(); r != nil {
-			err = &ErrMissingValueUnmarshaller{valueType: currentValueType}
+			err = &ErrMissingValuelessUnmarshaller{valueType: currentValueType}
 		}
 	}()
 
-	for _, field := range reflect.VisibleFields(contentType.In(0)) {
+	for _, field := range reflect.VisibleFields(reflect.TypeOf(c.Function).In(0)) {
 		if !unmarshal.TakesValue(field) {
 			currentValueType = field.Type
 			unmarshal.GetValuelessUnmarshaller(field.Type, field.Tag, nil)
@@ -238,13 +249,7 @@ func validateValuelessUmarshallers(c gah.Cmd) (err error) {
 }
 
 func validateSubcommandArgsOnCorrectType(c gah.Cmd) error {
-	contentType := reflect.TypeOf(c.Content)
-
-	if contentType == reflect.TypeOf([]gah.Cmd{}) {
-		return nil
-	}
-
-	for _, field := range reflect.VisibleFields(contentType.In(1)) {
+	for _, field := range reflect.VisibleFields(reflect.TypeOf(c.Function).In(1)) {
 		_, found := field.Tag.Lookup("subcommandArgs")
 		if found && field.Type != reflect.TypeOf([]string{}) {
 			return &ErrSubcommandArgsOnIncorrectType{}
@@ -255,13 +260,7 @@ func validateSubcommandArgsOnCorrectType(c gah.Cmd) error {
 }
 
 func validateNoEmptyShortFlags(c gah.Cmd) error {
-	contentType := reflect.TypeOf(c.Content)
-
-	if contentType == reflect.TypeOf([]gah.Cmd{}) {
-		return nil
-	}
-
-	for _, field := range reflect.VisibleFields(contentType.In(0)) {
+	for _, field := range reflect.VisibleFields(reflect.TypeOf(c.Function).In(0)) {
 		short, found := field.Tag.Lookup("short")
 		if found {
 			if utf8.RuneCountInString(short) == 0 {
@@ -274,13 +273,7 @@ func validateNoEmptyShortFlags(c gah.Cmd) error {
 }
 
 func validateNoEmptyLongFlags(c gah.Cmd) error {
-	contentType := reflect.TypeOf(c.Content)
-
-	if contentType == reflect.TypeOf([]gah.Cmd{}) {
-		return nil
-	}
-
-	for _, field := range reflect.VisibleFields(contentType.In(0)) {
+	for _, field := range reflect.VisibleFields(reflect.TypeOf(c.Function).In(0)) {
 		long, found := field.Tag.Lookup("long")
 		if found {
 			if utf8.RuneCountInString(long) == 0 {
@@ -293,13 +286,7 @@ func validateNoEmptyLongFlags(c gah.Cmd) error {
 }
 
 func validateNoMultiRuneShortFlags(c gah.Cmd) error {
-	contentType := reflect.TypeOf(c.Content)
-
-	if contentType == reflect.TypeOf([]gah.Cmd{}) {
-		return nil
-	}
-
-	for _, field := range reflect.VisibleFields(contentType.In(0)) {
+	for _, field := range reflect.VisibleFields(reflect.TypeOf(c.Function).In(0)) {
 		short, found := field.Tag.Lookup("short")
 		if found {
 			if utf8.RuneCountInString(short) > 1 {
@@ -312,15 +299,9 @@ func validateNoMultiRuneShortFlags(c gah.Cmd) error {
 }
 
 func validateNoConflictingShortFlags(c gah.Cmd) error {
-	contentType := reflect.TypeOf(c.Content)
-
-	if contentType == reflect.TypeOf([]gah.Cmd{}) {
-		return nil
-	}
-
 	var shortSoFar [][2]string
 
-	for _, field := range reflect.VisibleFields(contentType.In(0)) {
+	for _, field := range reflect.VisibleFields(reflect.TypeOf(c.Function).In(0)) {
 		short, found := field.Tag.Lookup("short")
 		if found {
 			for _, otherShort := range shortSoFar {
@@ -360,15 +341,9 @@ func pascalToKebab(s string) string {
 }
 
 func validateNoConflictingLongFlags(c gah.Cmd) error {
-	contentType := reflect.TypeOf(c.Content)
-
-	if contentType == reflect.TypeOf([]gah.Cmd{}) {
-		return nil
-	}
-
 	var longSoFar [][2]string
 
-	for _, field := range reflect.VisibleFields(contentType.In(0)) {
+	for _, field := range reflect.VisibleFields(reflect.TypeOf(c.Function).In(0)) {
 		long, found := field.Tag.Lookup("long")
 		if !found {
 			long = pascalToKebab(field.Name)
@@ -388,15 +363,9 @@ func validateNoConflictingLongFlags(c gah.Cmd) error {
 }
 
 func validateNoConflictingSubcommands(c gah.Cmd) error {
-	contentType := reflect.TypeOf(c.Content)
-
-	if contentType != reflect.TypeOf([]gah.Cmd{}) {
-		return nil
-	}
-
 	var namesSoFar [][2]string
 
-	for _, subcommand := range c.Content.([]gah.Cmd) {
+	for _, subcommand := range c.Subcommands {
 		for _, otherName := range namesSoFar {
 			if subcommand.Name == otherName[0] {
 				return &ErrConflictingSubcommands{subcommandNames: []string{
@@ -422,13 +391,7 @@ func validateNoConflictingSubcommands(c gah.Cmd) error {
 }
 
 func validateNoFailingDefaults(c gah.Cmd) error {
-	contentType := reflect.TypeOf(c.Content)
-
-	if contentType == reflect.TypeOf([]gah.Cmd{}) {
-		return nil
-	}
-
-	for _, field := range reflect.VisibleFields(contentType.In(0)) {
+	for _, field := range reflect.VisibleFields(reflect.TypeOf(c.Function).In(0)) {
 		defaultStr, found := field.Tag.Lookup("default")
 		if found {
 			_, err := unmarshal.GetValueUnmarshaller(field.Type,
@@ -444,15 +407,9 @@ func validateNoFailingDefaults(c gah.Cmd) error {
 }
 
 func validateOneOrFewerVariableArguments(c gah.Cmd) error {
-	contentType := reflect.TypeOf(c.Content)
-
-	if contentType == reflect.TypeOf([]gah.Cmd{}) {
-		return nil
-	}
-
 	var variableSoFar []string
 
-	for _, field := range reflect.VisibleFields(contentType.In(1)) {
+	for _, field := range reflect.VisibleFields(reflect.TypeOf(c.Function).In(1)) {
 		if field.Type.Kind() != reflect.Slice {
 			continue
 		}
@@ -484,6 +441,14 @@ func validateOneOrFewerVariableArguments(c gah.Cmd) error {
 		if len(variableSoFar) > 1 {
 			return &ErrMultipleVariableArguments{argumentNames: variableSoFar}
 		}
+	}
+
+	return nil
+}
+
+func validateNoArgsAndSubcommands(c gah.Cmd) error {
+	if len(reflect.VisibleFields(reflect.TypeOf(c.Function).In(1))) != 0 && c.Subcommands != nil {
+		return &ErrArgsAndSubcommands{}
 	}
 
 	return nil

@@ -24,7 +24,7 @@ func (c Cmd) SimpleEval() {
 }
 
 func (c Cmd) Eval(args []string, parentNames []string) error {
-	if hasSubcommads(c) {
+	if c.Subcommands != nil {
 		return evalSubcommand(c, args, parentNames)
 	} else {
 		return evalAndRun(c, args, parentNames)
@@ -33,7 +33,7 @@ func (c Cmd) Eval(args []string, parentNames []string) error {
 
 func (c Cmd) EvalMulticall(args []string) {
 	wanted := path.Base(args[0])
-	for _, subcommand := range c.Content.([]Cmd) {
+	for _, subcommand := range c.Subcommands {
 		if wanted == subcommand.Name {
 			subcommand.Eval(args, []string{})
 			return
@@ -41,16 +41,12 @@ func (c Cmd) EvalMulticall(args []string) {
 	}
 }
 
-func hasSubcommads(c Cmd) bool {
-	return reflect.TypeOf(c.Content).AssignableTo(reflect.TypeOf([]Cmd{}))
-}
-
 func evalSubcommand(c Cmd, args []string, parentNames []string) error {
 	if len(args) < 2 {
 		return ErrExpectedSubcommand
 	}
 	arg := args[1]
-	for _, subcommand := range c.Content.([]Cmd) {
+	for _, subcommand := range c.Subcommands {
 		if arg == subcommand.Name {
 			return subcommand.Eval(args[1:], append(parentNames, c.Name))
 		}
@@ -64,7 +60,7 @@ func evalSubcommand(c Cmd, args []string, parentNames []string) error {
 
 	if arg == "-h" || arg == "--help" || arg == "help" {
 		if len(args) > 2 {
-			for _, subcommand := range c.Content.([]Cmd) {
+			for _, subcommand := range c.Subcommands {
 				if args[2] == subcommand.Name {
 					subcommand.PrintHelp(append(parentNames, c.Name))
 					return nil
@@ -81,7 +77,6 @@ func evalSubcommand(c Cmd, args []string, parentNames []string) error {
 			if args[2] == "help" {
 				Cmd{Name: "help",
 					Description: "Print this help message or the help message of the given subcommand",
-					Content:     func(_ struct{}, _ struct{}) {},
 				}.PrintHelp(append(parentNames, c.Name))
 				return nil
 			}
@@ -104,9 +99,9 @@ func evalSubcommand(c Cmd, args []string, parentNames []string) error {
 }
 
 func evalAndRun(c Cmd, inputArgs []string, parentNames []string) error {
-	flagsType := reflect.TypeOf(c.Content).In(0)
+	flagsType := reflect.TypeOf(c.Function).In(0)
 	flags := reflect.New(flagsType)
-	argsType := reflect.TypeOf(c.Content).In(1)
+	argsType := reflect.TypeOf(c.Function).In(1)
 	args := reflect.New(argsType)
 
 	allFlags := getFlags(flagsType)
@@ -293,7 +288,7 @@ func evalAndRun(c Cmd, inputArgs []string, parentNames []string) error {
 		flag.SetDefaultIfUnset(flags, c.CustomValueUnmarshallers)
 	}
 
-	reflect.ValueOf(c.Content).Call([]reflect.Value{
+	reflect.ValueOf(c.Function).Call([]reflect.Value{
 		reflect.Indirect(flags), reflect.Indirect(args)})
 
 	return nil
@@ -520,6 +515,11 @@ func getArgs(argsType reflect.Type) []argInfo {
 	for i, field := range reflect.VisibleFields(argsType) {
 		switch field.Type.Kind() {
 		case reflect.Slice:
+			if !unmarshal.ElementWise(field) {
+				argInfoItems[i] = &defaultArgInfo{field: field}
+				continue
+			}
+
 			min := 0
 			minStr, found := field.Tag.Lookup("min")
 			if found {
@@ -542,6 +542,11 @@ func getArgs(argsType reflect.Type) []argInfo {
 
 			argInfoItems[i] = &sliceArgInfo{min: min, max: max, field: field}
 		case reflect.Array:
+			if !unmarshal.ElementWise(field) {
+				argInfoItems[i] = &defaultArgInfo{field: field}
+				continue
+			}
+
 			argInfoItems[i] = &arrayArgInfo{field: field}
 		default:
 			argInfoItems[i] = &defaultArgInfo{field: field}
@@ -559,7 +564,7 @@ func (c Cmd) PrintHelp(parentNames []string) {
 	if c.Description != "" {
 		println(c.Description)
 	}
-	if hasSubcommads(c) {
+	if c.Subcommands != nil {
 		println("\nUSAGE:\n\t" + strings.Join(append(parentNames, c.Name), " ") + " [SUBCOMMAND]")
 		if c.Version == "" {
 			println("\nFLAGS:\n\t-h, --help Prints help information")
@@ -568,14 +573,14 @@ func (c Cmd) PrintHelp(parentNames []string) {
 		}
 		println("\nSUBCOMMANDS:")
 		maxSubcommandNameLength := 0
-		for _, subcommand := range c.Content.([]Cmd) {
+		for _, subcommand := range c.Subcommands {
 			l := len(strings.Join(
 				append([]string{subcommand.Name}, subcommand.Aliases...), ", "))
 			if l > maxSubcommandNameLength {
 				maxSubcommandNameLength = l
 			}
 		}
-		for _, subcommand := range c.Content.([]Cmd) {
+		for _, subcommand := range c.Subcommands {
 			s := strings.Join(append([]string{subcommand.Name},
 				subcommand.Aliases...), ", ")
 			l := len(s)
@@ -584,7 +589,7 @@ func (c Cmd) PrintHelp(parentNames []string) {
 		}
 	} else {
 		print("\nUSAGE:\n\t" + c.Name)
-		args := getArgs(reflect.TypeOf(c.Content).In(1))
+		args := getArgs(reflect.TypeOf(c.Function).In(1))
 		for _, arg := range args {
 			if arg.Optional() {
 				if arg.Multiple() {

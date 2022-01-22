@@ -9,8 +9,8 @@ import (
 )
 
 var simpleVersionedCmd = Cmd{
-	Version: "v0.0.0",
-	Content: func(f struct{}, a struct{}) {},
+	Version:  "v0.0.0",
+	Function: func(f struct{}, a struct{}) {},
 }
 
 func TestNoArgs(t *testing.T) {
@@ -38,7 +38,7 @@ func TestVersionSuccess(t *testing.T) {
 }
 
 var simpleUnversionedCmd = Cmd{
-	Content: func(f struct{}, a struct{}) {},
+	Function: func(f struct{}, a struct{}) {},
 }
 
 func TestVersionFailure(t *testing.T) {
@@ -57,7 +57,7 @@ func TestFlags(t *testing.T) {
 	var test2 string
 
 	cmd := Cmd{
-		Content: func(f struct {
+		Function: func(f struct {
 			Test1 bool   `short:"1"`
 			Test2 string `long:"test-two"`
 		}, _ struct{}) {
@@ -85,7 +85,7 @@ func TestDefaults(t *testing.T) {
 	var test2 string
 
 	cmd := Cmd{
-		Content: func(f struct {
+		Function: func(f struct {
 			Test1 int    `default:"7"`
 			Test2 string `default:"test2"`
 		}, _ struct{}) {
@@ -105,7 +105,7 @@ func TestArgs(t *testing.T) {
 	var test3 [3]string
 
 	cmd := Cmd{
-		Content: func(_ struct{},
+		Function: func(_ struct{},
 			a struct {
 				Test1 string
 				Test2 []int `min:"1" max:"3"`
@@ -142,7 +142,7 @@ func TestCustomUnmarshallers(t *testing.T) {
 	var test3 bool
 
 	cmd := Cmd{
-		Content: func(f struct {
+		Function: func(f struct {
 			Test1 bool `takesVal:"true"`
 			Test2 bool
 		}, a struct {
@@ -177,7 +177,7 @@ func TestSubcommandArgs(t *testing.T) {
 	expectedArgs := []string{"these", "--are", "args", "for", "-a", "subcommand"}
 
 	cmd := Cmd{
-		Content: func(f struct {
+		Function: func(f struct {
 			OutputFormat string
 		}, a struct {
 			SubcommandArgs []string `subcommandArgs:""`

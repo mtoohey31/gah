@@ -9,56 +9,68 @@ import (
 
 func TestRecursiveValidation(t *testing.T) {
 	cmd := gah.Cmd{
-		Content: []gah.Cmd{
+		Subcommands: []gah.Cmd{
 			{
-				Content: "not good content",
+				Function: func() {},
 			},
 		},
 	}
-	assert.ErrorIs(t, Validate(cmd, true), &ErrInvalidContent{})
+	assert.ErrorIs(t, Validate(cmd, true), &ErrFunctionTakesNonTwoArgs{})
 }
 
-func TestValidateContent(t *testing.T) {
+func TestValidateFunctionIsFunction(t *testing.T) {
 	cmd := gah.Cmd{
-		Content: []gah.ErrUnexpectedFlag{},
+		Function: "asdf",
 	}
-	assert.ErrorIs(t, Validate(cmd, true), &ErrInvalidContent{})
+	assert.ErrorIs(t, Validate(cmd, true), &ErrFunctionIsNotFunction{})
+}
 
-	cmd = gah.Cmd{
-		Content: func() {},
+func TestValidateFunctionTakesTwoArgs(t *testing.T) {
+	cmd := gah.Cmd{
+		Function: func() {},
 	}
-	assert.ErrorIs(t, Validate(cmd, true), &ErrInvalidContent{})
+	assert.ErrorIs(t, Validate(cmd, true), &ErrFunctionTakesNonTwoArgs{})
+	cmd = gah.Cmd{
+		Function: func(_ struct{}, _ struct{}, _ struct{}) {},
+	}
+	assert.ErrorIs(t, Validate(cmd, true), &ErrFunctionTakesNonTwoArgs{})
+}
 
-	cmd = gah.Cmd{
-		Content: func(_ struct{}, _ string) {},
+func TestValidateFunctionTakesStructArgs(t *testing.T) {
+	cmd := gah.Cmd{
+		Function: func(_ string, _ struct{}) {},
 	}
-	assert.ErrorIs(t, Validate(cmd, true), &ErrInvalidContent{})
+	assert.ErrorIs(t, Validate(cmd, true), &ErrFunctionTakesNonStructArg{})
+	cmd = gah.Cmd{
+		Function: func(_ struct{}, _ string) {},
+	}
+	assert.ErrorIs(t, Validate(cmd, true), &ErrFunctionTakesNonStructArg{})
 }
 
 func TestValidateNoFailingParams(t *testing.T) {
 	cmd := gah.Cmd{
-		Content: func(f struct {
+		Function: func(f struct {
 			Test bool `takesVal:"not a bool"`
 		}, _ struct{}) {
 		},
 	}
 	assert.ErrorIs(t, Validate(cmd, true), &ErrFailingParam{})
 	cmd = gah.Cmd{
-		Content: func(f struct {
+		Function: func(f struct {
 			Test uint64 `minVal:"-32.5"`
 		}, _ struct{}) {
 		},
 	}
 	assert.ErrorIs(t, Validate(cmd, true), &ErrFailingParam{})
 	cmd = gah.Cmd{
-		Content: func(f struct {
+		Function: func(f struct {
 			Test uint64 `maxVal:"-32.5"`
 		}, _ struct{}) {
 		},
 	}
 	assert.ErrorIs(t, Validate(cmd, true), &ErrFailingParam{})
 	cmd = gah.Cmd{
-		Content: func(_ struct{},
+		Function: func(_ struct{},
 			a struct {
 				Test []int `min:"1.1"`
 			}) {
@@ -66,7 +78,7 @@ func TestValidateNoFailingParams(t *testing.T) {
 	}
 	assert.ErrorIs(t, Validate(cmd, true), &ErrFailingParam{})
 	cmd = gah.Cmd{
-		Content: func(_ struct{},
+		Function: func(_ struct{},
 			a struct {
 				Test []int `max:"-"`
 			}) {
@@ -74,7 +86,7 @@ func TestValidateNoFailingParams(t *testing.T) {
 	}
 	assert.ErrorIs(t, Validate(cmd, true), &ErrFailingParam{})
 	cmd = gah.Cmd{
-		Content: func(_ struct{},
+		Function: func(_ struct{},
 			a struct {
 				Test uint8 `minVal:"-2"`
 			}) {
@@ -82,7 +94,7 @@ func TestValidateNoFailingParams(t *testing.T) {
 	}
 	assert.ErrorIs(t, Validate(cmd, true), &ErrFailingParam{})
 	cmd = gah.Cmd{
-		Content: func(_ struct{},
+		Function: func(_ struct{},
 			a struct {
 				Test int8 `maxVal:"700"`
 			}) {
@@ -93,7 +105,7 @@ func TestValidateNoFailingParams(t *testing.T) {
 
 func TestValidateValueUnmarshallers(t *testing.T) {
 	cmd := gah.Cmd{
-		Content: func(f struct {
+		Function: func(f struct {
 			Test gah.Cmd
 		}, _ struct{}) {
 		},
@@ -101,7 +113,7 @@ func TestValidateValueUnmarshallers(t *testing.T) {
 	assert.ErrorIs(t, Validate(cmd, true), &ErrMissingValueUnmarshaller{})
 
 	cmd = gah.Cmd{
-		Content: func(_ struct{},
+		Function: func(_ struct{},
 			a struct {
 				Test gah.Cmd
 			}) {
@@ -112,17 +124,17 @@ func TestValidateValueUnmarshallers(t *testing.T) {
 
 func TestValidateValuelessUnmarshallers(t *testing.T) {
 	cmd := gah.Cmd{
-		Content: func(f struct {
+		Function: func(f struct {
 			Test string `takesVal:"false"`
 		}, _ struct{}) {
 		},
 	}
-	assert.ErrorIs(t, Validate(cmd, true), &ErrMissingValueUnmarshaller{})
+	assert.ErrorIs(t, Validate(cmd, true), &ErrMissingValuelessUnmarshaller{})
 }
 
 func TestValidateSubcommandArgsOnCorrectType(t *testing.T) {
 	cmd := gah.Cmd{
-		Content: func(_ struct{}, a struct {
+		Function: func(_ struct{}, a struct {
 			SubcommandArgs []int `subcommandArgs:""`
 		}) {
 		},
@@ -132,7 +144,7 @@ func TestValidateSubcommandArgsOnCorrectType(t *testing.T) {
 
 func TestValidateNoEmptyShortFlags(t *testing.T) {
 	cmd := gah.Cmd{
-		Content: func(f struct {
+		Function: func(f struct {
 			Test1 bool `short:""`
 		}, _ struct{}) {
 		},
@@ -142,7 +154,7 @@ func TestValidateNoEmptyShortFlags(t *testing.T) {
 
 func TestValidateNoEmptyLongFlags(t *testing.T) {
 	cmd := gah.Cmd{
-		Content: func(f struct {
+		Function: func(f struct {
 			Test1 bool `long:""`
 		}, _ struct{}) {
 		},
@@ -152,7 +164,7 @@ func TestValidateNoEmptyLongFlags(t *testing.T) {
 
 func TestValidateNoMultiRuneShortFlags(t *testing.T) {
 	cmd := gah.Cmd{
-		Content: func(f struct {
+		Function: func(f struct {
 			Test1 bool `short:"tt"`
 		}, _ struct{}) {
 		},
@@ -162,7 +174,7 @@ func TestValidateNoMultiRuneShortFlags(t *testing.T) {
 
 func TestValidateNoConflictingShortFlags(t *testing.T) {
 	cmd := gah.Cmd{
-		Content: func(f struct {
+		Function: func(f struct {
 			Test1 bool   `short:"t"`
 			Test2 string `short:"t"`
 		}, _ struct{}) {
@@ -173,7 +185,7 @@ func TestValidateNoConflictingShortFlags(t *testing.T) {
 
 func TestValidateNoConflictingLongFlags(t *testing.T) {
 	cmd := gah.Cmd{
-		Content: func(f struct {
+		Function: func(f struct {
 			Test1 bool   `long:"test"`
 			Test2 string `long:"test"`
 		}, _ struct{}) {
@@ -181,7 +193,7 @@ func TestValidateNoConflictingLongFlags(t *testing.T) {
 	}
 	assert.ErrorIs(t, Validate(cmd, true), &ErrConflictingLongFlags{})
 	cmd = gah.Cmd{
-		Content: func(f struct {
+		Function: func(f struct {
 			Test1 bool `long:"test-2"`
 			Test2 string
 		}, _ struct{}) {
@@ -192,7 +204,7 @@ func TestValidateNoConflictingLongFlags(t *testing.T) {
 
 func TestValidateNoConflictingSubcommands(t *testing.T) {
 	cmd := gah.Cmd{
-		Content: []gah.Cmd{
+		Subcommands: []gah.Cmd{
 			{
 				Name: "test",
 			},
@@ -203,7 +215,7 @@ func TestValidateNoConflictingSubcommands(t *testing.T) {
 	}
 	assert.ErrorIs(t, Validate(cmd, true), &ErrConflictingSubcommands{})
 	cmd = gah.Cmd{
-		Content: []gah.Cmd{
+		Subcommands: []gah.Cmd{
 			{
 				Name:    "test-1",
 				Aliases: []string{"test"},
@@ -216,7 +228,7 @@ func TestValidateNoConflictingSubcommands(t *testing.T) {
 	}
 	assert.ErrorIs(t, Validate(cmd, true), &ErrConflictingSubcommands{})
 	cmd = gah.Cmd{
-		Content: []gah.Cmd{
+		Subcommands: []gah.Cmd{
 			{
 				Name: "test",
 			},
@@ -228,7 +240,7 @@ func TestValidateNoConflictingSubcommands(t *testing.T) {
 	}
 	assert.ErrorIs(t, Validate(cmd, true), &ErrConflictingSubcommands{})
 	cmd = gah.Cmd{
-		Content: []gah.Cmd{
+		Subcommands: []gah.Cmd{
 			{
 				Name:    "test",
 				Aliases: []string{"test"},
@@ -237,7 +249,7 @@ func TestValidateNoConflictingSubcommands(t *testing.T) {
 	}
 	assert.ErrorIs(t, Validate(cmd, true), &ErrConflictingSubcommands{})
 	cmd = gah.Cmd{
-		Content: []gah.Cmd{
+		Subcommands: []gah.Cmd{
 			{
 				Name:    "test1",
 				Aliases: []string{"test2", "test2"},
@@ -249,7 +261,7 @@ func TestValidateNoConflictingSubcommands(t *testing.T) {
 
 func TestValidateNoFailingDefaults(t *testing.T) {
 	cmd := gah.Cmd{
-		Content: func(f struct {
+		Function: func(f struct {
 			Test int `default:"not a number"`
 		}, _ struct{}) {
 		},
@@ -259,7 +271,7 @@ func TestValidateNoFailingDefaults(t *testing.T) {
 
 func TestValidateOneOrFewerVariableArguments(t *testing.T) {
 	cmd := gah.Cmd{
-		Content: func(_ struct{}, a struct {
+		Function: func(_ struct{}, a struct {
 			Normal1   string
 			Variable1 []string
 			Normal2   int
@@ -270,7 +282,7 @@ func TestValidateOneOrFewerVariableArguments(t *testing.T) {
 	assert.ErrorIs(t, Validate(cmd, true), &ErrMultipleVariableArguments{})
 
 	cmd = gah.Cmd{
-		Content: func(_ struct{}, a struct {
+		Function: func(_ struct{}, a struct {
 			Normal1   string
 			Variable1 []int `min:"3" max:"4"`
 			Normal2   int
@@ -279,4 +291,15 @@ func TestValidateOneOrFewerVariableArguments(t *testing.T) {
 		},
 	}
 	assert.ErrorIs(t, Validate(cmd, true), &ErrMultipleVariableArguments{})
+}
+
+func TestValidateNoArgsAndSubcommands(t *testing.T) {
+	cmd := gah.Cmd{
+		Function: func(_ struct{}, a struct {
+			Arg string
+		}) {
+		},
+		Subcommands: []gah.Cmd{},
+	}
+	assert.ErrorIs(t, Validate(cmd, true), &ErrArgsAndSubcommands{})
 }
