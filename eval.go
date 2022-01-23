@@ -12,9 +12,6 @@ import (
 	"mtoohey.com/gah/unmarshal"
 )
 
-// TODO: refactor help and version into flags/subcommands so they're treated
-// like normal values
-
 func (c Cmd) SimpleEval() {
 	err := c.Eval(os.Args, []string{})
 	if err != nil {
