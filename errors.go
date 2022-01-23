@@ -1,11 +1,18 @@
 package gah
 
-import (
-	"errors"
-	"fmt"
-)
+import "fmt"
 
-var ErrExpectedSubcommand = errors.New("expected subcommand")
+type ErrExpectedSubcommand struct{}
+
+func (e *ErrExpectedSubcommand) Error() string {
+	return "expected subcommand"
+}
+
+func (e *ErrExpectedSubcommand) Is(target error) bool {
+	var t interface{} = target
+	_, ok := t.(*ErrExpectedSubcommand)
+	return ok
+}
 
 type ErrInvalidSubcommand struct {
 	subcommand string

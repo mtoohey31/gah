@@ -8,14 +8,15 @@ import (
 	"mtoohey.com/gah/unmarshal"
 )
 
+// TODO: test subcommand evaulation
+
 var simpleVersionedCmd = Cmd{
 	Version:  "v0.0.0",
 	Function: func(f struct{}, a struct{}) {},
 }
 
 func TestNoArgs(t *testing.T) {
-	err := simpleVersionedCmd.Eval([]string{""}, nil)
-	assert.NoError(t, err)
+	assert.NoError(t, simpleUnversionedCmd.Eval([]string{""}, nil))
 }
 
 func TestHelp(t *testing.T) {
@@ -25,7 +26,8 @@ func TestHelp(t *testing.T) {
 	assert.NoError(t, simpleVersionedCmd.Eval([]string{"", "--help"}, nil))
 	assert.NoError(t, simpleVersionedCmd.Eval(
 		[]string{"", "--help", "extra", "ignored", "args"}, nil))
-	assert.NoError(t, simpleVersionedCmd.Eval([]string{"", "help"}, nil))
+	assert.ErrorIs(t, simpleVersionedCmd.Eval([]string{"", "help"}, nil),
+		&ErrUnexpectedArgument{})
 }
 
 func TestVersionSuccess(t *testing.T) {
@@ -122,8 +124,8 @@ func TestArgs(t *testing.T) {
 	assert.Equal(t, test1, "value1")
 	assert.Equal(t, test2, []int{1, 2, 3})
 	assert.Equal(t, test3, [3]string{"4", "5", "6"})
-	assert.ErrorIs(t, cmd.Eval([]string{"", "value1", "1", "2", "3", "4", "5"},
-		[]string{}), &ErrExpectedArgumentValue{})
+	assert.NoError(t, cmd.Eval([]string{"", "value1", "1", "2", "3", "4", "5"},
+		[]string{}))
 	assert.ErrorIs(t, cmd.Eval([]string{"", "value1", "-5", "a", "b", "c"},
 		[]string{}), &ErrUnexpectedFlag{})
 	assert.NoError(t, cmd.Eval([]string{"", "value1", "--", "-5", "a", "b", "c"},
@@ -168,27 +170,4 @@ func TestCustomUnmarshallers(t *testing.T) {
 	assert.True(t, test1)
 	assert.True(t, !test2)
 	assert.True(t, !test3)
-}
-
-func TestSubcommandArgs(t *testing.T) {
-	var actualOutputFormat string
-	expectedOutputFormat := "json"
-	var actualArgs []string
-	expectedArgs := []string{"these", "--are", "args", "for", "-a", "subcommand"}
-
-	cmd := Cmd{
-		Function: func(f struct {
-			OutputFormat string
-		}, a struct {
-			SubcommandArgs []string `subcommandArgs:""`
-		}) {
-			actualOutputFormat = f.OutputFormat
-			actualArgs = a.SubcommandArgs
-		},
-	}
-
-	assert.NoError(t,
-		cmd.Eval(append([]string{"", "--output-format=json"}, expectedArgs...), nil))
-	assert.Equal(t, actualOutputFormat, expectedOutputFormat)
-	assert.Equal(t, actualArgs, expectedArgs)
 }

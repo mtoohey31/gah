@@ -23,14 +23,6 @@ func (c Cmd) SimpleEval() {
 	}
 }
 
-func (c Cmd) Eval(args []string, parentNames []string) error {
-	if c.Subcommands != nil {
-		return evalSubcommand(c, args, parentNames)
-	} else {
-		return evalAndRun(c, args, parentNames)
-	}
-}
-
 func (c Cmd) EvalMulticall(args []string) {
 	wanted := path.Base(args[0])
 	for _, subcommand := range c.Subcommands {
@@ -41,72 +33,63 @@ func (c Cmd) EvalMulticall(args []string) {
 	}
 }
 
-func evalSubcommand(c Cmd, args []string, parentNames []string) error {
-	if len(args) < 2 {
-		c.Subcommands[0].Eval(args[1:], append(parentNames, c.Name))
-	}
-	arg := args[1]
-	for _, subcommand := range c.Subcommands {
-		if arg == subcommand.Name {
-			return subcommand.Eval(args[1:], append(parentNames, c.Name))
-		}
-
-		for _, alias := range subcommand.Aliases {
-			if arg == alias {
-				return subcommand.Eval(args[1:], append(parentNames, c.Name))
-			}
-		}
-	}
-
-	if arg == "-h" || arg == "--help" || arg == "help" {
-		if len(args) > 2 {
-			for _, subcommand := range c.Subcommands {
-				if args[2] == subcommand.Name {
-					subcommand.PrintHelp(append(parentNames, c.Name))
-					return nil
-				}
-
-				for _, alias := range subcommand.Aliases {
-					if args[2] == alias {
-						subcommand.PrintHelp(append(parentNames, c.Name))
-						return nil
-					}
-				}
-			}
-
-			if args[2] == "help" {
-				Cmd{Name: "help",
-					Description: "Print this help message or the help message of the given subcommand",
-				}.PrintHelp(append(parentNames, c.Name))
-				return nil
-			}
-		}
-
-		c.PrintHelp(parentNames)
-		return nil
-	}
-
-	if arg == "-v" || arg == "--version" {
-		if c.Version == "" {
-			return &ErrUnexpectedFlag{flag: arg}
-		} else {
-			println(c.Version)
-			return nil
-		}
-	}
-
-	return &ErrInvalidSubcommand{subcommand: arg}
-}
-
-func evalAndRun(c Cmd, inputArgs []string, parentNames []string) error {
+func (c Cmd) Eval(inputArgs []string, parentNames []string) error {
 	flagsType := reflect.TypeOf(c.Function).In(0)
 	flags := reflect.New(flagsType)
-	argsType := reflect.TypeOf(c.Function).In(1)
-	args := reflect.New(argsType)
+	var positionalArgs []string
+
+	var enrichedSubcommands []Cmd
+	if c.Subcommands != nil {
+		helpFound := false
+		for _, subcommand := range c.Subcommands {
+			if subcommand.Name == "help" {
+				helpFound = true
+				break
+			}
+
+			for _, alias := range subcommand.Aliases {
+				if alias == "help" {
+					helpFound = true
+					break
+				}
+			}
+			if helpFound {
+				break
+			}
+		}
+
+		if !helpFound {
+			enrichedSubcommands = make([]Cmd, len(c.Subcommands)+1)
+			copy(enrichedSubcommands, c.Subcommands)
+			enrichedSubcommands[len(enrichedSubcommands)-1] = Cmd{
+				Name: "help",
+				Function: func(_ struct{}, a struct {
+					SubcommandName []string `min:"0" max:"1"`
+				}) {
+					if len(a.SubcommandName) > 0 {
+						for _, subcommand := range c.Subcommands {
+							if subcommand.Name == a.SubcommandName[0] {
+								subcommand.PrintHelp(append(parentNames, c.Name))
+								return
+							}
+
+							for _, alias := range subcommand.Aliases {
+								if alias == a.SubcommandName[0] {
+									subcommand.PrintHelp(append(parentNames, c.Name))
+									return
+								}
+							}
+						}
+					}
+
+					c.PrintHelp(parentNames)
+				},
+			}
+		}
+	}
 
 	allFlags := getFlags(flagsType)
 	validShort, validLong := getFlagMaps(allFlags)
-	remainingArgs := getArgs(argsType)
 
 	doubleDashEncountered := false
 
@@ -235,52 +218,79 @@ func evalAndRun(c Cmd, inputArgs []string, parentNames []string) error {
 				}
 			}
 		} else {
-			// TODO: be appropriately greedy when there are fixed quantity arguments
-			// after variable ones
-			if len(remainingArgs) == 0 {
-				if arg == "help" {
-					// NOTE: we don't need to search for subcommand names here because
-					// there are no subcommands in this evaulation case
-					c.PrintHelp(parentNames)
-					return nil
-				} else {
-					return &ErrUnexpectedArgument{argument: arg}
-				}
-			}
+			if c.Subcommands == nil {
+				positionalArgs = append(positionalArgs, arg)
+			} else {
+				for _, subcommand := range enrichedSubcommands {
+					if arg == subcommand.Name {
+						reflect.ValueOf(c.Function).Call([]reflect.Value{reflect.Indirect(flags),
+							reflect.Indirect(reflect.New(reflect.TypeOf(c.Function).In(1)))})
+						subcommand.Eval(inputArgs[i:], append(parentNames, c.Name))
+						return nil
+					}
 
-			_, found := remainingArgs[0].Field().Tag.Lookup("subcommandArgs")
-			if found {
-				args.Elem().FieldByIndex(remainingArgs[0].Field().Index).Set(
-					reflect.ValueOf(inputArgs[i:]))
-				break
-			}
-
-			if remainingArgs[0].MaxReached(args) {
-				remainingArgs = remainingArgs[1:]
-				i--
-				continue
-			}
-
-			res, err := remainingArgs[0].Unmarshaller(c.CustomValueUnmarshallers)(arg, remainingArgs[0].Field().Tag)
-			if err != nil {
-				if remainingArgs[0].MinReached(args) {
-					remainingArgs = remainingArgs[1:]
-					i--
-					continue
+					for _, alias := range subcommand.Aliases {
+						if arg == alias {
+							reflect.ValueOf(c.Function).Call([]reflect.Value{reflect.Indirect(flags),
+								reflect.Indirect(reflect.New(reflect.TypeOf(c.Function).In(1)))})
+							subcommand.Eval(inputArgs[i:], append(parentNames, c.Name))
+							return nil
+						}
+					}
 				}
 
-				return &ErrUnmarshallingArgument{
-					name:  strings.ToUpper(remainingArgs[0].Field().Name),
-					value: arg, error: err}
+				return &ErrInvalidSubcommand{subcommand: arg}
 			}
-
-			remainingArgs[0].Update(args, res)
 		}
 	}
 
-	for _, arg := range remainingArgs {
-		if !arg.MinReached(args) {
-			return &ErrExpectedArgumentValue{name: strings.ToUpper(arg.Field().Name)}
+	if c.Subcommands != nil {
+		return &ErrExpectedSubcommand{}
+	}
+
+	argsType := reflect.TypeOf(c.Function).In(1)
+	args := reflect.New(argsType)
+	argInfo := getArgs(argsType)
+
+	minArgs := 0
+	maxArgs := 0
+	for _, arg := range argInfo {
+		minArgs += arg.Min()
+		maxArgs += arg.Max()
+	}
+
+	if len(positionalArgs) < minArgs {
+		for _, arg := range argInfo {
+			minArgs -= arg.Min()
+			if minArgs < 0 {
+				return &ErrExpectedArgumentValue{name: strings.ToUpper(arg.Field().Name)}
+			}
+		}
+	} else if len(positionalArgs) > maxArgs {
+		return &ErrUnexpectedArgument{argument: positionalArgs[maxArgs]}
+	}
+
+	additionalVariableArgs := len(positionalArgs) - minArgs
+
+	i := 0
+	for _, info := range argInfo {
+		var numToTake int
+		if info.Min() != info.Max() {
+			numToTake = info.Min() + additionalVariableArgs
+		} else {
+			numToTake = info.Min()
+		}
+
+		for j := 0; j < numToTake; j++ {
+			res, err := info.Unmarshaller(c.CustomValueUnmarshallers)(positionalArgs[i], info.Field().Tag)
+			if err != nil {
+				return &ErrUnmarshallingArgument{
+					name:  strings.ToUpper(info.Field().Name),
+					value: positionalArgs[i], error: err}
+			}
+
+			i++
+			info.Update(args, res)
 		}
 	}
 
@@ -401,8 +411,8 @@ func pascalToKebab(s string) string {
 }
 
 type argInfo interface {
-	MinReached(reflect.Value) bool
-	MaxReached(reflect.Value) bool
+	Min() int
+	Max() int
 	Field() reflect.StructField
 	Unmarshaller(c unmarshal.CustomValueUnmarshallers,
 	) func(string, reflect.StructTag) (reflect.Value, error)
@@ -417,13 +427,9 @@ type sliceArgInfo struct {
 	field reflect.StructField
 }
 
-func (i *sliceArgInfo) MinReached(f reflect.Value) bool {
-	return f.Elem().FieldByIndex(i.field.Index).Len() >= i.min
-}
+func (i *sliceArgInfo) Min() int { return i.min }
 
-func (i *sliceArgInfo) MaxReached(f reflect.Value) bool {
-	return f.Elem().FieldByIndex(i.field.Index).Len() >= i.max
-}
+func (i *sliceArgInfo) Max() int { return i.max }
 
 func (i *sliceArgInfo) Field() reflect.StructField { return i.field }
 
@@ -454,13 +460,9 @@ type arrayArgInfo struct {
 	field reflect.StructField
 }
 
-func (i *arrayArgInfo) MinReached(v reflect.Value) bool {
-	return v.Elem().FieldByIndex(i.field.Index).Len() == i.curr
-}
+func (i *arrayArgInfo) Min() int { return i.field.Type.Len() }
 
-func (i *arrayArgInfo) MaxReached(v reflect.Value) bool {
-	return v.Elem().FieldByIndex(i.field.Index).Len() == i.curr
-}
+func (i *arrayArgInfo) Max() int { return i.field.Type.Len() }
 
 func (i *arrayArgInfo) Field() reflect.StructField { return i.field }
 
@@ -485,13 +487,9 @@ type defaultArgInfo struct {
 	field reflect.StructField
 }
 
-func (i *defaultArgInfo) MinReached(_ reflect.Value) bool {
-	return i.set
-}
+func (i *defaultArgInfo) Min() int { return 1 }
 
-func (i *defaultArgInfo) MaxReached(_ reflect.Value) bool {
-	return i.set
-}
+func (i *defaultArgInfo) Max() int { return 1 }
 
 func (i *defaultArgInfo) Field() reflect.StructField { return i.field }
 

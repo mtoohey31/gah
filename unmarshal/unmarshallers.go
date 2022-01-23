@@ -56,6 +56,7 @@ func ElementWise(f reflect.StructField) bool {
 	}
 
 	for _, v := range defaultsToNoNonElementWise {
+		// BUG: will panic if someone passes a type without elements
 		if f.Type.Elem() == v {
 			return false
 		}
