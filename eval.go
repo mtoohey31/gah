@@ -228,16 +228,20 @@ func (c Cmd) Eval(inputArgs []string, parentNames []string) error {
 			} else {
 				for _, subcommand := range enrichedSubcommands {
 					if arg == subcommand.Name {
-						reflect.ValueOf(c.Function).Call([]reflect.Value{reflect.Indirect(flags),
-							reflect.Indirect(reflect.New(reflect.TypeOf(c.Function).In(1)))})
+						if c.Function != nil {
+							reflect.ValueOf(c.Function).Call([]reflect.Value{reflect.Indirect(flags),
+								reflect.Indirect(reflect.New(reflect.TypeOf(c.Function).In(1)))})
+						}
 						subcommand.Eval(inputArgs[i:], append(parentNames, c.Name))
 						return nil
 					}
 
 					for _, alias := range subcommand.Aliases {
 						if arg == alias {
-							reflect.ValueOf(c.Function).Call([]reflect.Value{reflect.Indirect(flags),
-								reflect.Indirect(reflect.New(reflect.TypeOf(c.Function).In(1)))})
+							if c.Function != nil {
+								reflect.ValueOf(c.Function).Call([]reflect.Value{reflect.Indirect(flags),
+									reflect.Indirect(reflect.New(reflect.TypeOf(c.Function).In(1)))})
+							}
 							subcommand.Eval(inputArgs[i:], append(parentNames, c.Name))
 							return nil
 						}
