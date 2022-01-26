@@ -8,6 +8,7 @@ import (
 	"net"
 	"os"
 	"reflect"
+	"regexp"
 	"strconv"
 	"time"
 )
@@ -516,6 +517,11 @@ var valueUnmarshallers = map[reflect.Type]ValueUnmarshaller{
 	reflect.TypeOf(net.IPNet{}): func(s string, t reflect.StructTag) (reflect.Value, error) {
 		_, ipNet, err := net.ParseCIDR(s)
 		return reflect.ValueOf(ipNet), err
+	},
+
+	reflect.TypeOf(&regexp.Regexp{}): func(s string, t reflect.StructTag) (reflect.Value, error) {
+		r, err := regexp.Compile(s)
+		return reflect.ValueOf(r), err
 	},
 }
 
