@@ -74,6 +74,7 @@ var functionValidators = []func(gah.Cmd) error{
 	validateNoConflictingShortFlags,
 	validateNoConflictingLongFlags,
 	validateNoFailingDefaults,
+	validateDynamicDefaultFlagsType,
 	validateOneOrFewerVariableArguments,
 }
 
@@ -400,6 +401,23 @@ func validateNoFailingDefaults(c gah.Cmd) error {
 				return &ErrFailingDefault{defaultString: defaultStr,
 					flagName: field.Name, error: err}
 			}
+		}
+	}
+
+	return nil
+}
+func validateDynamicDefaultFlagsType(c gah.Cmd) error {
+	if c.DefaultFlags == nil {
+		return nil
+	}
+
+	flagType := reflect.TypeOf(c.Function).In(0)
+	dynamicDefaultFlagsType := reflect.TypeOf(c.DefaultFlags)
+
+	if flagType != dynamicDefaultFlagsType {
+		return &ErrMismatchedDynamicDefaultFlags{
+			actual:   dynamicDefaultFlagsType,
+			expected: flagType,
 		}
 	}
 

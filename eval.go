@@ -56,6 +56,8 @@ func (c Cmd) Eval(inputArgs []string, parentNames []string) error {
 		}
 
 		if !helpFound {
+			// TODO: can I make this an append instead? implement tests that ensure
+			// the subcommands aren't mutated in the return value
 			enrichedSubcommands = make([]Cmd, len(c.Subcommands)+1)
 			copy(enrichedSubcommands, c.Subcommands)
 			enrichedSubcommands[len(enrichedSubcommands)-1] = Cmd{
@@ -289,8 +291,10 @@ func (c Cmd) Eval(inputArgs []string, parentNames []string) error {
 		}
 	}
 
-	for _, flag := range allFlags {
-		flag.SetDefaultIfUnset(flags, c.CustomValueUnmarshallers)
+	if c.DefaultFlags != nil {
+		for _, flag := range allFlags {
+			flag.SetDefaultIfUnset(flags, c.DefaultFlags, c.CustomValueUnmarshallers)
+		}
 	}
 
 	reflect.ValueOf(c.Function).Call([]reflect.Value{
@@ -328,25 +332,12 @@ type flagInfo struct {
 	set   bool
 }
 
-func (i *flagInfo) SetDefaultIfUnset(f reflect.Value, c unmarshal.CustomValueUnmarshallers) {
+func (i *flagInfo) SetDefaultIfUnset(f reflect.Value, d interface{}, c unmarshal.CustomValueUnmarshallers) {
 	if i.set {
 		return
 	}
 
-	defaultString, found := i.field.Tag.Lookup("default")
-	if !found {
-		return
-	}
-
-	unmarshaller := unmarshal.GetValueUnmarshaller(i.field.Type, i.field.Tag, c)
-
-	res, err := unmarshaller(defaultString, i.field.Tag)
-	if err != nil {
-		panic(fmt.Sprintf("unmarshalling failed for default value of flag %s",
-			i.field.Name))
-	}
-
-	f.Elem().FieldByIndex(i.field.Index).Set(res)
+	f.Elem().FieldByIndex(i.field.Index).Set(reflect.ValueOf(d).FieldByIndex(i.field.Index))
 	i.set = true
 }
 

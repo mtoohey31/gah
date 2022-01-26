@@ -269,6 +269,29 @@ func TestValidateNoFailingDefaults(t *testing.T) {
 	assert.ErrorIs(t, Validate(cmd, true), &ErrFailingDefault{})
 }
 
+func TestValidateDynamicDefaultFlagsType(t *testing.T) {
+	cmd := gah.Cmd{
+		Function:     func(f struct{}, _ struct{}) {},
+		DefaultFlags: "asdf",
+	}
+	assert.ErrorIs(t, Validate(cmd, true), &ErrMismatchedDynamicDefaultFlags{})
+	cmd = gah.Cmd{
+		Function: func(f struct{}, _ struct{}) {},
+		DefaultFlags: struct {
+			Bad string
+		}{},
+	}
+	assert.ErrorIs(t, Validate(cmd, true), &ErrMismatchedDynamicDefaultFlags{})
+	cmd = gah.Cmd{
+		Function: func(f struct {
+			Bad string
+		}, _ struct{}) {
+		},
+		DefaultFlags: struct{}{},
+	}
+	assert.ErrorIs(t, Validate(cmd, true), &ErrMismatchedDynamicDefaultFlags{})
+}
+
 func TestValidateOneOrFewerVariableArguments(t *testing.T) {
 	cmd := gah.Cmd{
 		Function: func(_ struct{}, a struct {

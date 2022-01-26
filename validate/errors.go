@@ -204,6 +204,22 @@ func (e *ErrFailingDefault) Is(target error) bool {
 	return ok
 }
 
+type ErrMismatchedDynamicDefaultFlags struct {
+	actual   reflect.Type
+	expected reflect.Type
+}
+
+func (e *ErrMismatchedDynamicDefaultFlags) Error() string {
+	return fmt.Sprintf("mismatched dynamic default flags type: %v, expected %v",
+		e.actual, e.expected)
+}
+
+func (e *ErrMismatchedDynamicDefaultFlags) Is(target error) bool {
+	var t interface{} = target
+	_, ok := t.(*ErrMismatchedDynamicDefaultFlags)
+	return ok
+}
+
 // NOTE: this can't validate params in custom unmarshallers, users are
 // responsible for that, the only way to test that here would be to convert
 // unmarshallers to interfaces or structs, which is an overkill solution

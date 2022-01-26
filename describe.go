@@ -19,6 +19,7 @@ type Cmd struct {
 	// modification of `interface{ []Cmd | interface{} }`
 	Function                     interface{}
 	Subcommands                  []Cmd
+	DefaultFlags                 interface{}
 	CustomValueUnmarshallers     unmarshal.CustomValueUnmarshallers
 	CustomValuelessUnmarshallers unmarshal.CustomValuelessUnmarshallers
 }
