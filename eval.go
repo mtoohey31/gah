@@ -2,6 +2,7 @@ package gah
 
 import (
 	"fmt"
+	"math"
 	"os"
 	"path"
 	"reflect"
@@ -525,7 +526,7 @@ func getArgs(argsType reflect.Type) []argInfo {
 				}
 			}
 
-			max := ^int(0)
+			max := math.MaxInt
 			maxStr, found := field.Tag.Lookup("max")
 			if found {
 				var err error
