@@ -600,6 +600,8 @@ func (c Cmd) PrintHelp(parentNames []string) {
 				}
 			}
 		}
+		// to ensure there's a new line at the end of the usage line
+		println()
 		// TODO: print flags
 	}
 }
