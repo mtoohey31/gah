@@ -15,7 +15,7 @@ import (
 func (c Cmd) SimpleEval() {
 	err := c.Eval(os.Args, []string{})
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "\033[31%v\033[0m\n", err)
+		fmt.Fprintf(os.Stderr, "\033[31m%v\033[0m\n", err)
 		os.Exit(1)
 	}
 }
