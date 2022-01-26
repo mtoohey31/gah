@@ -233,8 +233,7 @@ func (c Cmd) Eval(inputArgs []string, parentNames []string) error {
 							reflect.ValueOf(c.Function).Call([]reflect.Value{reflect.Indirect(flags),
 								reflect.Indirect(reflect.New(reflect.TypeOf(c.Function).In(1)))})
 						}
-						subcommand.Eval(inputArgs[i:], append(parentNames, c.Name))
-						return nil
+						return subcommand.Eval(inputArgs[i:], append(parentNames, c.Name))
 					}
 
 					for _, alias := range subcommand.Aliases {
@@ -243,8 +242,7 @@ func (c Cmd) Eval(inputArgs []string, parentNames []string) error {
 								reflect.ValueOf(c.Function).Call([]reflect.Value{reflect.Indirect(flags),
 									reflect.Indirect(reflect.New(reflect.TypeOf(c.Function).In(1)))})
 							}
-							subcommand.Eval(inputArgs[i:], append(parentNames, c.Name))
-							return nil
+							return subcommand.Eval(inputArgs[i:], append(parentNames, c.Name))
 						}
 					}
 				}
