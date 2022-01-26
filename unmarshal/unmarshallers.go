@@ -66,7 +66,7 @@ func ElementWise(f reflect.StructField) bool {
 	return true
 }
 
-func GetValueUnmarshaller(t reflect.Type, g reflect.StructTag,
+func GetValueUnmarshaller(t reflect.Type,
 	c CustomValueUnmarshallers) ValueUnmarshaller {
 	u, found := c[t]
 	if found {
@@ -79,7 +79,7 @@ func GetValueUnmarshaller(t reflect.Type, g reflect.StructTag,
 	panic(fmt.Sprintf("no value unmarshaller for type %s", t.Name()))
 }
 
-func GetValuelessUnmarshaller(t reflect.Type, g reflect.StructTag,
+func GetValuelessUnmarshaller(t reflect.Type,
 	c CustomValuelessUnmarshallers) ValuelessUnmarshaller {
 	u, found := c[t]
 	if found {

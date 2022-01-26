@@ -133,7 +133,7 @@ func validateNoFailingParams(c gah.Cmd) error {
 
 		minVal, found := field.Tag.Lookup("minVal")
 		if found {
-			_, err := unmarshal.GetValueUnmarshaller(field.Type, "",
+			_, err := unmarshal.GetValueUnmarshaller(field.Type,
 				c.CustomValueUnmarshallers)(minVal, "")
 			if err != nil {
 				return &ErrFailingParam{paramName: "minVal", paramString: minVal,
@@ -143,7 +143,7 @@ func validateNoFailingParams(c gah.Cmd) error {
 
 		maxVal, found := field.Tag.Lookup("maxVal")
 		if found {
-			_, err := unmarshal.GetValueUnmarshaller(field.Type, "",
+			_, err := unmarshal.GetValueUnmarshaller(field.Type,
 				c.CustomValueUnmarshallers)(maxVal, "")
 			if err != nil {
 				return &ErrFailingParam{paramName: "maxVal", paramString: maxVal,
@@ -173,7 +173,7 @@ func validateNoFailingParams(c gah.Cmd) error {
 
 		minVal, found := field.Tag.Lookup("minVal")
 		if found {
-			_, err := unmarshal.GetValueUnmarshaller(field.Type, "",
+			_, err := unmarshal.GetValueUnmarshaller(field.Type,
 				c.CustomValueUnmarshallers)(minVal, "")
 			if err != nil {
 				return &ErrFailingParam{paramName: "minVal", paramString: minVal,
@@ -183,7 +183,7 @@ func validateNoFailingParams(c gah.Cmd) error {
 
 		maxVal, found := field.Tag.Lookup("maxVal")
 		if found {
-			_, err := unmarshal.GetValueUnmarshaller(field.Type, "",
+			_, err := unmarshal.GetValueUnmarshaller(field.Type,
 				c.CustomValueUnmarshallers)(maxVal, "")
 			if err != nil {
 				return &ErrFailingParam{paramName: "maxVal", paramString: maxVal,
@@ -209,7 +209,7 @@ func validateValueUmarshallers(c gah.Cmd) (err error) {
 	for _, field := range reflect.VisibleFields(functionType.In(0)) {
 		if unmarshal.TakesValue(field) {
 			currentValueType = field.Type
-			unmarshal.GetValueUnmarshaller(field.Type, field.Tag, nil)
+			unmarshal.GetValueUnmarshaller(field.Type, nil)
 		}
 	}
 
@@ -223,7 +223,7 @@ func validateValueUmarshallers(c gah.Cmd) (err error) {
 			default:
 				currentValueType = field.Type
 			}
-			unmarshal.GetValueUnmarshaller(currentValueType, field.Tag, nil)
+			unmarshal.GetValueUnmarshaller(currentValueType, nil)
 		}
 	}
 
@@ -242,7 +242,7 @@ func validateValuelessUmarshallers(c gah.Cmd) (err error) {
 	for _, field := range reflect.VisibleFields(reflect.TypeOf(c.Function).In(0)) {
 		if !unmarshal.TakesValue(field) {
 			currentValueType = field.Type
-			unmarshal.GetValuelessUnmarshaller(field.Type, field.Tag, nil)
+			unmarshal.GetValuelessUnmarshaller(field.Type, nil)
 		}
 	}
 
@@ -396,7 +396,7 @@ func validateNoFailingDefaults(c gah.Cmd) error {
 		defaultStr, found := field.Tag.Lookup("default")
 		if found {
 			_, err := unmarshal.GetValueUnmarshaller(field.Type,
-				field.Tag, c.CustomValueUnmarshallers)(defaultStr, field.Tag)
+				c.CustomValueUnmarshallers)(defaultStr, field.Tag)
 			if err != nil {
 				return &ErrFailingDefault{defaultString: defaultStr,
 					flagName: field.Name, error: err}

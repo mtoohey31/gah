@@ -129,7 +129,7 @@ func (c Cmd) Eval(inputArgs []string, parentNames []string) error {
 					flagValue = arg[eqIndex+1:]
 				}
 
-				unmarshaller := unmarshal.GetValueUnmarshaller(flag.field.Type, flag.field.Tag,
+				unmarshaller := unmarshal.GetValueUnmarshaller(flag.field.Type,
 					c.CustomValueUnmarshallers)
 
 				res, err := unmarshaller(flagValue, flag.field.Tag)
@@ -144,7 +144,7 @@ func (c Cmd) Eval(inputArgs []string, parentNames []string) error {
 				}
 
 				unmarshaller := unmarshal.GetValuelessUnmarshaller(flag.field.Type,
-					flag.field.Tag, c.CustomValuelessUnmarshallers)
+					c.CustomValuelessUnmarshallers)
 
 				res, err := unmarshaller(flags.Elem().FieldByIndex(flag.field.Index),
 					flag.field.Tag)
@@ -195,7 +195,7 @@ func (c Cmd) Eval(inputArgs []string, parentNames []string) error {
 					}
 
 					unmarshaller := unmarshal.GetValueUnmarshaller(flag.field.Type,
-						flag.field.Tag, c.CustomValueUnmarshallers)
+						c.CustomValueUnmarshallers)
 
 					res, err := unmarshaller(flagValue, flag.field.Tag)
 					if err != nil {
@@ -209,7 +209,7 @@ func (c Cmd) Eval(inputArgs []string, parentNames []string) error {
 					}
 
 					unmarshaller := unmarshal.GetValuelessUnmarshaller(flag.field.Type,
-						flag.field.Tag, c.CustomValuelessUnmarshallers)
+						c.CustomValuelessUnmarshallers)
 					if !ok {
 						panic(fmt.Sprintf("no valueless unmarshaller for flag -%c", flagRune))
 					}
@@ -433,7 +433,7 @@ func (i *sliceArgInfo) Field() reflect.StructField { return i.field }
 
 func (i *sliceArgInfo) Unmarshaller(c unmarshal.CustomValueUnmarshallers,
 ) func(string, reflect.StructTag) (reflect.Value, error) {
-	return unmarshal.GetValueUnmarshaller(i.field.Type.Elem(), i.field.Tag, c)
+	return unmarshal.GetValueUnmarshaller(i.field.Type.Elem(), c)
 }
 
 func (i *sliceArgInfo) Update(f reflect.Value, v reflect.Value) {
@@ -466,7 +466,7 @@ func (i *arrayArgInfo) Field() reflect.StructField { return i.field }
 
 func (i *arrayArgInfo) Unmarshaller(c unmarshal.CustomValueUnmarshallers,
 ) func(string, reflect.StructTag) (reflect.Value, error) {
-	return unmarshal.GetValueUnmarshaller(i.field.Type.Elem(), i.field.Tag, c)
+	return unmarshal.GetValueUnmarshaller(i.field.Type.Elem(), c)
 }
 
 func (i *arrayArgInfo) Update(f reflect.Value, v reflect.Value) {
@@ -493,7 +493,7 @@ func (i *defaultArgInfo) Field() reflect.StructField { return i.field }
 
 func (i *defaultArgInfo) Unmarshaller(c unmarshal.CustomValueUnmarshallers,
 ) func(string, reflect.StructTag) (reflect.Value, error) {
-	return unmarshal.GetValueUnmarshaller(i.field.Type, i.field.Tag, c)
+	return unmarshal.GetValueUnmarshaller(i.field.Type, c)
 }
 
 func (i *defaultArgInfo) Optional() bool { return false }
