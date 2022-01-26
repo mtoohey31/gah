@@ -31,7 +31,15 @@ func (c Cmd) EvalMulticall(args []string) {
 }
 
 func (c Cmd) Eval(inputArgs []string, parentNames []string) error {
-	flagsType := reflect.TypeOf(c.Function).In(0)
+	var flagsType reflect.Type
+	var argsType reflect.Type
+	if c.Function == nil {
+		flagsType = reflect.TypeOf(struct{}{})
+		argsType = flagsType
+	} else {
+		flagsType = reflect.TypeOf(c.Function).In(0)
+		argsType = reflect.TypeOf(c.Function).In(1)
+	}
 	flags := reflect.New(flagsType)
 	var positionalArgs []string
 
@@ -245,7 +253,6 @@ func (c Cmd) Eval(inputArgs []string, parentNames []string) error {
 		return &ErrExpectedSubcommand{}
 	}
 
-	argsType := reflect.TypeOf(c.Function).In(1)
 	args := reflect.New(argsType)
 	argInfo := getArgs(argsType)
 
