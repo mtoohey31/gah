@@ -10,6 +10,7 @@ import (
 	"reflect"
 	"regexp"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -68,15 +69,62 @@ func ElementWise(f reflect.StructField) bool {
 
 func GetValueUnmarshaller(t reflect.Type,
 	c CustomValueUnmarshallers) ValueUnmarshaller {
-	u, found := c[t]
-	if found {
-		return u
+	switch t.Kind() {
+	case reflect.Array:
+		u, found := c[t.Elem()]
+		if !found {
+			u, found = valueUnmarshallers[t.Elem()]
+			if !found {
+				panic(fmt.Sprintf("no value unmarshaller for type %s",
+					t.Elem().Name()))
+			}
+		}
+		return func(s string, g reflect.StructTag) (reflect.Value, error) {
+			subStrs := strings.Split(s, ",")
+			res := reflect.New(reflect.ArrayOf(len(subStrs), t.Elem()))
+			for i, s := range subStrs {
+				currRes, err := u(s, g)
+				if err == nil {
+				} else {
+					return reflect.New(t), err
+				}
+				res.Index(i).Set(currRes)
+			}
+			return res, nil
+		}
+	case reflect.Slice:
+		u, found := c[t.Elem()]
+		if !found {
+			u, found = valueUnmarshallers[t.Elem()]
+			if !found {
+				panic(fmt.Sprintf("no value unmarshaller for type %s",
+					t.Elem().Name()))
+			}
+		}
+		return func(s string, g reflect.StructTag) (reflect.Value, error) {
+			subStrs := strings.Split(s, ",")
+			res := reflect.MakeSlice(t, len(subStrs), len(subStrs))
+			for i, s := range subStrs {
+				currRes, err := u(s, g)
+				if err == nil {
+				} else {
+					return reflect.New(t), err
+				}
+				res.Index(i).Set(currRes)
+			}
+			return res, nil
+		}
+	default:
+		u, found := c[t]
+		if found {
+			return u
+		}
+		u, found = valueUnmarshallers[t]
+		if found {
+			return u
+		}
+		panic(fmt.Sprintf("no value unmarshaller for type %s", t.Name()))
 	}
-	u, found = valueUnmarshallers[t]
-	if found {
-		return u
-	}
-	panic(fmt.Sprintf("no value unmarshaller for type %s", t.Name()))
 }
 
 func GetValuelessUnmarshaller(t reflect.Type,
