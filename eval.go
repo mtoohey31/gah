@@ -372,6 +372,8 @@ func getFlagMaps(flags []flagInfo) (map[rune]*flagInfo, map[string]*flagInfo) {
 		if found {
 			runes := []rune(short)
 			validShort[runes[0]] = &flags[i]
+		} else {
+			validShort[unicode.ToLower([]rune(flags[i].field.Name)[0])] = &flags[i]
 		}
 
 		long, found := flags[i].field.Tag.Lookup("long")
