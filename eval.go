@@ -274,7 +274,8 @@ func (c Cmd) Eval(inputArgs []string, parentNames []string) error {
 			}
 		}
 	} else if len(positionalArgs) > maxArgs {
-		return &ErrUnexpectedArgument{argument: positionalArgs[maxArgs]}
+		return &ErrUnexpectedArgument{
+			argument: positionalArgs[len(positionalArgs)-1]}
 	}
 
 	additionalVariableArgs := len(positionalArgs) - minArgs
