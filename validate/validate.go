@@ -465,7 +465,8 @@ func validateOneOrFewerVariableArguments(c gah.Cmd) error {
 }
 
 func validateNoArgsAndSubcommands(c gah.Cmd) error {
-	if len(reflect.VisibleFields(reflect.TypeOf(c.Function).In(1))) != 0 && c.Subcommands != nil {
+	if c.Function != nil && len(reflect.VisibleFields(reflect.TypeOf(c.Function).In(1))) != 0 &&
+		c.Subcommands != nil {
 		return &ErrArgsAndSubcommands{}
 	}
 
